@@ -1166,7 +1166,8 @@ function nextMilestone() {
   return milestones.find(m=>state.lifetime < m) || milestones[milestones.length-1];
 }
 
-function render() {
+// Fast update: numbers and progress bars only — safe to call every tick
+function renderStats() {
   document.getElementById("zayens").innerText = fmt(state.zayens);
   document.getElementById("perClick").innerText = fmt(perClick());
   document.getElementById("perSecond").innerText = fmt(perSecond());
@@ -1190,7 +1191,10 @@ function render() {
     Date.now() < state.powerupUntil
       ? (state.megaFrenzy ? "x5 MEGA Frenzy" : "x3 Frenzy") + " active: " + Math.ceil((state.powerupUntil-Date.now())/1000) + "s left"
       : "No active power-up.";
+}
 
+// Slow update: rebuilds button lists from scratch — call after purchases or ~once/sec from tick
+function renderLists() {
   document.getElementById("upgradeList").innerHTML = upgrades.map(u=>{
     const owned = state.upgrades[u.id] || 0;
     const disc = discountMult();
@@ -1268,6 +1272,9 @@ function render() {
     return `<div class="area"><div class="row"><div><h3>${a.name}</h3><div class="small">Production x${a.mult} • Unlock at ${fmt(a.need)} lifetime Zayens</div></div><button ${state.lifetime<a.need?"disabled":""} onclick="${unlocked?`setArea('${a.id}')`:`unlockArea('${a.id}')`}">${unlocked?(state.currentArea===a.id?"Active":"Travel"):"Unlock"}</button></div></div>`;
   }).join("");
 }
+
+// Full render: call this after purchases or from non-tick code paths
+function render() { renderStats(); renderLists(); }
 
 function applyAreaTheme() {
   document.body.className = document.body.className.replace(/\barea-\S+/g, "").trim();
@@ -1458,6 +1465,7 @@ render();
 
 const TICK_MS = 200;
 let _tickAcc = 0;
+let _listRenderAcc = 0;
 setInterval(()=>{
   earn(perSecond() * TICK_MS / 1000);
   if (skillOwned("autoTap")) earn(perClick() * TICK_MS / 1000);
@@ -1480,7 +1488,10 @@ setInterval(()=>{
       triggerInfinityEvent();
     }
   }
-  render();
+  // Stats every tick; lists only every ~1000ms to avoid destroying buttons mid-click
+  renderStats();
+  _listRenderAcc += TICK_MS;
+  if (_listRenderAcc >= 1000) { _listRenderAcc = 0; renderLists(); }
 }, TICK_MS);
 
 setInterval(()=>saveGame(false), 5000);
