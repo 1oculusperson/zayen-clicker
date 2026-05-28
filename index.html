@@ -303,7 +303,17 @@ button:disabled {
 </main>
 
 <script>
+(function() {
 const SAVE_KEY = "zayenClickerSaveV1";
+const _SALT = "z4y3n_1nt3rn4l_k3y_v2";
+function _hash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36);
+}
 
 let state = {
   zayens:0,
@@ -899,23 +909,30 @@ function toast(msg) {
 
 function saveGame(manual=false) {
   state.lastSave = Date.now();
-  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-  
-document.getElementById("autosaveText").textContent = manual ? "Saved!" : "Autosaved";
-setTimeout(()=>{
-  const el = document.getElementById("autosaveText");
-  if (el) el.textContent = "Autosaving...";
-}, 2500);
-
-if (manual) toast("Saved!");
-
+  const data = JSON.stringify(state);
+  localStorage.setItem(SAVE_KEY, JSON.stringify({d: btoa(unescape(encodeURIComponent(data))), h: _hash(data + _SALT)}));
+  document.getElementById("autosaveText").textContent = manual ? "Saved!" : "Autosaved";
+  setTimeout(()=>{ const el = document.getElementById("autosaveText"); if (el) el.textContent = "Autosaving..."; }, 2500);
+  if (manual) toast("Saved!");
 }
 
 function loadGame() {
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) return;
   try {
-    const saved = JSON.parse(raw);
+    const wrapper = JSON.parse(raw);
+    let saved;
+    if (wrapper.d && wrapper.h) {
+      const data = decodeURIComponent(escape(atob(wrapper.d)));
+      if (_hash(data + _SALT) !== wrapper.h) {
+        localStorage.removeItem(SAVE_KEY);
+        alert("Save data was modified and cannot be loaded. Starting fresh.");
+        return;
+      }
+      saved = JSON.parse(data);
+    } else {
+      saved = wrapper;
+    }
     state = {...state, ...saved};
     const elapsed = Math.min(28800000, Date.now() - (state.lastSave || Date.now()));
     const offline = perSecond() * elapsed / 1000;
@@ -965,6 +982,17 @@ setInterval(()=>{
 
 setInterval(()=>saveGame(false), 5000);
 window.addEventListener("beforeunload", ()=>saveGame(false));
+
+// Expose only UI-triggered functions — state and earn stay private
+window.showTab=showTab; window.buyUpgrade=buyUpgrade; window.buyGenerator=buyGenerator;
+window.buySkill=buySkill; window.buyStarUpgrade=buyStarUpgrade; window.buyGenSpeed=buyGenSpeed;
+window.unlockArea=unlockArea; window.setArea=setArea; window.prestige=prestige;
+window.claimDaily=claimDaily; window.openLootBox=openLootBox; window.openStarLootBox=openStarLootBox;
+window.activatePowerup=activatePowerup; window.activateMegaFrenzy=activateMegaFrenzy;
+window.exchangeGemsForStar=exchangeGemsForStar; window.exchangeStarForGems=exchangeStarForGems;
+window.luckySpin=luckySpin; window.collectQuest=collectQuest;
+window.saveGame=saveGame; window.hardReset=hardReset;
+})();
 </script>
 </body>
 </html>
