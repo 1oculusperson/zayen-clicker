@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "start": "vite --host 0.0.0.0",
+    "dev": "vite --host 0.0.0.0",
+    "build": "mkdir -p dist && cp index.html cookie.png dist/",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {}
+}

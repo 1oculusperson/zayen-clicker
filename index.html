@@ -1,0 +1,707 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Zayen Clicker</title>
+<style>
+:root {
+  --bg1:#171724;
+  --bg2:#282858;
+  --card:rgba(255,255,255,.10);
+  --card2:rgba(255,255,255,.15);
+  --gold:#ffbf4d;
+  --green:#7ef29d;
+  --blue:#78c7ff;
+  --pink:#ff88cc;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  font-family:"Fredoka", sans-serif;
+  background:radial-gradient(circle at top, var(--bg2), var(--bg1));
+  color:white;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+header {
+  padding:18px 22px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  background:rgba(0,0,0,.18);
+  position:sticky;
+  top:0;
+  z-index:5;
+  backdrop-filter:blur(10px);
+}
+h1,h2,h3 { margin-top:0; }
+button {
+  background:var(--gold);
+  border:0;
+  border-radius:12px;
+  padding:10px 13px;
+  font-weight:bold;
+  cursor:pointer;
+}
+button:hover { filter:brightness(1.08); }
+button:disabled {
+  opacity:.45;
+  cursor:not-allowed;
+}
+.layout {
+  max-width:1300px;
+  margin:0 auto;
+  padding:22px;
+  display:grid;
+  grid-template-columns:1fr 1.1fr 1fr;
+  gap:20px;
+}
+.card {
+  background:var(--card);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;
+  padding:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,.18);
+}
+.center { text-align:center; }
+.big-number {
+  font-size:clamp(2rem,5vw,4rem);
+  font-weight:900;
+}
+.substats {
+  line-height:1.7;
+  opacity:.95;
+}
+#zayen {
+  width:min(75vw,330px);
+  border-radius:50%;
+  cursor:pointer;
+  transition:transform .08s ease, box-shadow .25s ease;
+  box-shadow:0 0 35px rgba(255,255,255,.25);
+  user-select:none;
+}
+#zayen:active { transform:scale(.93); }
+.upgrade,.achievement,.quest,.area,.skill {
+  background:var(--card2);
+  border-radius:16px;
+  padding:13px;
+  margin-bottom:12px;
+}
+.row {
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+}
+.small { opacity:.78; font-size:.92rem; }
+.progress {
+  height:12px;
+  border-radius:99px;
+  background:rgba(255,255,255,.15);
+  overflow:hidden;
+  margin:8px 0;
+}
+.fill {
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,var(--green),var(--blue));
+  transition:width .25s ease;
+}
+.tabs {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-bottom:12px;
+}
+.tab {
+  background:rgba(255,255,255,.13);
+  color:white;
+}
+.tab.active { background:var(--gold); color:#222; }
+.panel { display:none; }
+.panel.active { display:block; }
+.float {
+  position:fixed;
+  pointer-events:none;
+  font-weight:bold;
+  animation:floatUp .8s ease forwards;
+  z-index:20;
+}
+.particle {
+  position:fixed;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--gold);
+  pointer-events:none;
+  animation:burst .65s ease forwards;
+  z-index:19;
+}
+@keyframes floatUp {
+  from { opacity:1; transform:translateY(0); }
+  to { opacity:0; transform:translateY(-55px); }
+}
+@keyframes burst {
+  to { opacity:0; transform:translate(var(--x),var(--y)) scale(.2); }
+}
+.shake { animation:shake .18s linear; }
+@keyframes shake {
+  25% { transform:translateX(-3px); }
+  50% { transform:translateX(3px); }
+  75% { transform:translateX(-2px); }
+}
+.badge {
+  display:inline-block;
+  background:rgba(255,255,255,.16);
+  padding:5px 8px;
+  border-radius:999px;
+  margin:3px;
+}
+.unlock { color:var(--green); font-weight:bold; }
+@media (max-width:1000px) {
+  .layout { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <strong>Zayen Clicker</strong>
+    <span class="small">Level <span id="level">1</span> • Area: <span id="areaName">Classroom</span></span>
+  </div>
+  <div>
+    <button onclick="claimDaily()">Daily Reward</button>
+    <button onclick="saveGame(true)">Save</button> <span id="autosaveText" class="small">Autosaving...</span>
+    <button onclick="hardReset()">Reset</button>
+  </div>
+</header>
+
+<main class="layout">
+
+<section class="card center">
+  <div class="big-number"><span id="zayens">0</span></div>
+  <div class="small">Zayens</div>
+
+  <div style="margin:20px 0">
+    <img id="zayen" src="cookie.png" alt="Zayen" />
+  </div>
+
+  <div class="substats">
+    Per click: <b id="perClick">1</b><br>
+    Per second: <b id="perSecond">0</b><br>
+    Multiplier: <b>x<span id="multiplier">1</span></b><br>
+    Gems: <b id="gems">0</b> 💎<br>
+    Prestige Stars: <b id="stars">0</b> ⭐
+  </div>
+
+  <h3>Level Progress</h3>
+  <div class="progress"><div id="xpFill" class="fill"></div></div>
+  <div class="small"><span id="xp">0</span> / <span id="xpNeed">100</span> XP</div>
+
+  <h3>Milestone</h3>
+  <div class="progress"><div id="milestoneFill" class="fill"></div></div>
+  <div class="small" id="milestoneText">Reach 100 Zayens</div>
+</section>
+
+<section class="card">
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('upgrades', this)">Upgrades</button>
+    <button class="tab" onclick="showTab('automation', this)">Automation</button>
+    <button class="tab" onclick="showTab('skills', this)">Skill Tree</button>
+    <button class="tab" onclick="showTab('prestige', this)">Prestige</button>
+  </div>
+
+  <div id="upgrades" class="panel active">
+    <h2>Click Upgrades</h2>
+    <div id="upgradeList"></div>
+  </div>
+
+  <div id="automation" class="panel">
+    <h2>Generators</h2>
+    <div id="generatorList"></div>
+    <h2>Offline Earnings</h2>
+    <p class="small">When you come back, you earn up to 8 hours of idle production.</p>
+  </div>
+
+  <div id="skills" class="panel">
+    <h2>Skill Tree</h2>
+    <p class="small">Spend Gems on permanent bonuses.</p>
+    <div id="skillList"></div>
+  </div>
+
+  <div id="prestige" class="panel">
+    <h2>Prestige</h2>
+    <p>Reset Zayens, upgrades, and generators to earn Prestige Stars. Stars permanently boost production.</p>
+    <p>You would gain <b id="prestigeGain">0</b> stars.</p>
+    <button onclick="prestige()">Prestige Reset</button>
+  </div>
+</section>
+
+<section class="card">
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('goals', this)">Goals</button>
+    <button class="tab" onclick="showTab('areas', this)">Areas</button>
+    <button class="tab" onclick="showTab('rewards', this)">Rewards</button>
+  </div>
+
+  <div id="goals" class="panel active">
+    <h2>Quests</h2>
+    <div id="questList"></div>
+    <h2>Achievements</h2>
+    <div id="achievementList"></div>
+  </div>
+
+  <div id="areas" class="panel">
+    <h2>Areas</h2>
+    <div id="areaList"></div>
+  </div>
+
+  <div id="rewards" class="panel">
+    <h2>Loot Box</h2>
+    <p class="small">Costs 5 gems. Gives random Zayens, a multiplier burst, or bonus gems.</p>
+    <button onclick="openLootBox()">Open Loot Box</button>
+    <h2>Temporary Power-Up</h2>
+    <p id="powerupText" class="small">No active power-up.</p>
+    <button onclick="activatePowerup()">Activate 30s Frenzy (10 gems)</button>
+    <h2>Streak</h2>
+    <p>Daily streak: <b id="streak">0</b> days</p>
+  </div>
+</section>
+
+</main>
+
+<script>
+const SAVE_KEY = "zayenClickerSaveV1";
+
+let state = {
+  zayens:0,
+  lifetime:0,
+  totalClicks:0,
+  clickPower:1,
+  multiplier:1,
+  gems:0,
+  stars:0,
+  level:1,
+  xp:0,
+  streak:0,
+  lastDaily:0,
+  lastSave:Date.now(),
+  upgrades:{},
+  generators:{},
+  skills:{},
+  achievements:{},
+  areas:{classroom:true},
+  currentArea:"classroom",
+  powerupUntil:0
+};
+
+const upgrades = [
+  {id:"fingers", name:"Fast Fingers", desc:"+1 base per click", base:15, scale:1.48, effect:()=>state.clickPower += 1},
+  {id:"gloves", name:"Golden Gloves", desc:"+5 base per click", base:180, scale:1.55, effect:()=>state.clickPower += 5},
+  {id:"energy", name:"Zayen Energy", desc:"+15% production", base:600, scale:1.7, effect:()=>state.multiplier *= 1.15},
+  {id:"hyper", name:"Hyper Tap", desc:"+25 base per click", base:2500, scale:1.62, effect:()=>state.clickPower += 25}
+];
+
+const generators = [
+  {id:"clone", name:"Zayen Clone", desc:"+1 base/sec", base:40, scale:1.55, cps:1},
+  {id:"pet", name:"Zayen Pet", desc:"+8 base/sec", base:550, scale:1.6, cps:8},
+  {id:"factory", name:"Zayen Factory", desc:"+60 base/sec", base:6500, scale:1.65, cps:60},
+  {id:"portal", name:"Zayen Portal", desc:"+500 base/sec", base:90000, scale:1.7, cps:500}
+];
+
+const skills = [
+  {id:"tapMastery", name:"Tap Mastery", desc:"+20% click power", cost:5, effect:"click"},
+  {id:"idleMastery", name:"Idle Mastery", desc:"+20% passive income", cost:5, effect:"idle"},
+  {id:"discounts", name:"Inflation Control", desc:"All costs 10% cheaper", cost:8, effect:"discount"},
+  {id:"xpBoost", name:"XP Boost", desc:"+30% XP gain", cost:10, effect:"xp"}
+];
+
+const areas = [
+  {id:"classroom", name:"Classroom", need:0, mult:1},
+  {id:"cafeteria", name:"Cafeteria", need:5000, mult:1.25},
+  {id:"gym", name:"Gym", need:50000, mult:1.6},
+  {id:"zayenverse", name:"Zayenverse", need:500000, mult:2.2}
+];
+
+const achievements = [
+  {id:"click10", name:"First 10 Clicks", check:()=>state.totalClicks>=10, reward:2},
+  {id:"z100", name:"100 Zayens", check:()=>state.lifetime>=100, reward:2},
+  {id:"z10k", name:"10,000 Zayens", check:()=>state.lifetime>=10000, reward:8},
+  {id:"auto10", name:"Automation Army", check:()=>countGenerators()>=10, reward:6},
+  {id:"level10", name:"Level 10", check:()=>state.level>=10, reward:10}
+];
+
+const quests = [
+  {id:"qclicks", name:"Click 100 times", progress:()=>state.totalClicks, need:100, reward:5},
+  {id:"qearn", name:"Earn 5,000 lifetime Zayens", progress:()=>state.lifetime, need:5000, reward:8},
+  {id:"qauto", name:"Own 5 generators", progress:()=>countGenerators(), need:5, reward:5}
+];
+
+function fmt(n) {
+  if (n < 1000) return Math.floor(n).toString();
+  const units = ["K","M","B","T","Qa","Qi"];
+  let u = -1;
+  while (n >= 1000 && u < units.length - 1) { n /= 1000; u++; }
+  return n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2) + units[u];
+}
+
+function skillOwned(id) { return !!state.skills[id]; }
+function discountMult() { return skillOwned("discounts") ? .9 : 1; }
+function clickSkillMult() { return skillOwned("tapMastery") ? 1.2 : 1; }
+function idleSkillMult() { return skillOwned("idleMastery") ? 1.2 : 1; }
+function xpSkillMult() { return skillOwned("xpBoost") ? 1.3 : 1; }
+function starMult() { return 1 + state.stars * .08; }
+function areaMult() { return areas.find(a=>a.id===state.currentArea).mult; }
+function powerupMult() { return Date.now() < state.powerupUntil ? 3 : 1; }
+
+function totalMultiplier() {
+  return state.multiplier * starMult() * areaMult() * powerupMult();
+}
+
+function perClick() {
+  return state.clickPower * totalMultiplier() * clickSkillMult();
+}
+
+function baseCps() {
+  return generators.reduce((sum,g)=>sum + (state.generators[g.id]||0) * g.cps, 0);
+}
+
+function perSecond() {
+  return baseCps() * totalMultiplier() * idleSkillMult();
+}
+
+function upgradeCost(u) {
+  const owned = state.upgrades[u.id] || 0;
+  return u.base * Math.pow(u.scale, owned) * discountMult();
+}
+
+function generatorCost(g) {
+  const owned = state.generators[g.id] || 0;
+  return g.base * Math.pow(g.scale, owned) * discountMult();
+}
+
+function earn(amount) {
+  state.zayens += amount;
+  state.lifetime += amount;
+  state.xp += amount * 0.04 * xpSkillMult();
+  while (state.xp >= xpNeed()) {
+    state.xp -= xpNeed();
+    state.level++;
+    state.gems += 1;
+    toast("Level up! +1 gem");
+  }
+}
+
+function xpNeed() {
+  return Math.floor(100 * Math.pow(1.32, state.level - 1));
+}
+
+function countGenerators() {
+  return Object.values(state.generators).reduce((a,b)=>a+b,0);
+}
+
+function clickZayen(e) {
+  earn(perClick());
+  state.totalClicks++;
+
+  const img = document.getElementById("zayen");
+  img.style.transform = "scale(.92)";
+  setTimeout(()=>img.style.transform="scale(1)", 80);
+
+  floatingText("+" + fmt(perClick()), e.clientX, e.clientY);
+  particles(e.clientX, e.clientY);
+
+  if (state.totalClicks % 50 === 0) document.body.classList.add("shake");
+  setTimeout(()=>document.body.classList.remove("shake"), 180);
+
+  checkAchievements();
+  render();
+}
+
+function buyUpgrade(id) {
+  const u = upgrades.find(x=>x.id===id);
+  const cost = upgradeCost(u);
+  if (state.zayens < cost) return;
+  state.zayens -= cost;
+  state.upgrades[id] = (state.upgrades[id] || 0) + 1;
+  u.effect();
+  render();
+}
+
+function buyGenerator(id) {
+  const g = generators.find(x=>x.id===id);
+  const cost = generatorCost(g);
+  if (state.zayens < cost) return;
+  state.zayens -= cost;
+  state.generators[id] = (state.generators[id] || 0) + 1;
+  render();
+}
+
+function buySkill(id) {
+  const s = skills.find(x=>x.id===id);
+  if (state.skills[id] || state.gems < s.cost) return;
+  state.gems -= s.cost;
+  state.skills[id] = true;
+  render();
+}
+
+function unlockArea(id) {
+  const a = areas.find(x=>x.id===id);
+  if (state.lifetime < a.need) return;
+  state.areas[id] = true;
+  state.currentArea = id;
+  render();
+}
+
+function setArea(id) {
+  if (!state.areas[id]) return;
+  state.currentArea = id;
+  render();
+}
+
+function prestigeGain() {
+  return Math.floor(Math.sqrt(state.lifetime / 100000));
+}
+
+function prestige() {
+  const gain = prestigeGain();
+  if (gain < 1) return alert("You need more lifetime Zayens before prestiging.");
+  if (!confirm("Prestige reset for " + gain + " stars?")) return;
+  const keep = {
+    gems:state.gems,
+    stars:state.stars + gain,
+    skills:state.skills,
+    achievements:state.achievements,
+    streak:state.streak,
+    lastDaily:state.lastDaily
+  };
+  state = {
+    zayens:0,lifetime:0,totalClicks:0,clickPower:1,multiplier:1,gems:keep.gems,stars:keep.stars,
+    level:1,xp:0,streak:keep.streak,lastDaily:keep.lastDaily,lastSave:Date.now(),
+    upgrades:{},generators:{},skills:keep.skills,achievements:keep.achievements,
+    areas:{classroom:true},currentArea:"classroom",powerupUntil:0
+  };
+  saveGame(true);
+  render();
+}
+
+function claimDaily() {
+  const now = Date.now();
+  const day = 86400000;
+  if (now - state.lastDaily < day) {
+    alert("Daily reward already claimed. Come back later.");
+    return;
+  }
+  if (now - state.lastDaily < day * 2) state.streak++;
+  else state.streak = 1;
+
+  state.lastDaily = now;
+  const reward = 3 + state.streak;
+  state.gems += reward;
+  earn(Math.max(100, perSecond() * 60 * state.streak));
+  toast("Daily reward: +" + reward + " gems");
+  render();
+}
+
+function openLootBox() {
+  if (state.gems < 5) return alert("Need 5 gems.");
+  state.gems -= 5;
+  const roll = Math.random();
+  if (roll < .45) {
+    const amount = Math.max(250, perSecond() * 90 + perClick() * 50);
+    earn(amount);
+    toast("Loot: +" + fmt(amount) + " Zayens");
+  } else if (roll < .75) {
+    state.powerupUntil = Date.now() + 15000;
+    toast("Loot: 15s x3 frenzy");
+  } else {
+    state.gems += 8;
+    toast("Loot: +8 gems");
+  }
+  render();
+}
+
+function activatePowerup() {
+  if (state.gems < 10) return alert("Need 10 gems.");
+  state.gems -= 10;
+  state.powerupUntil = Date.now() + 30000;
+  render();
+}
+
+function checkAchievements() {
+  achievements.forEach(a=>{
+    if (!state.achievements[a.id] && a.check()) {
+      state.achievements[a.id] = true;
+      state.gems += a.reward;
+      toast("Achievement: " + a.name + " +" + a.reward + " gems");
+    }
+  });
+}
+
+function collectQuest(id) {
+  const q = quests.find(x=>x.id===id);
+  if (state.achievements["quest_"+id]) return;
+  if (q.progress() >= q.need) {
+    state.achievements["quest_"+id] = true;
+    state.gems += q.reward;
+    toast("Quest complete: +" + q.reward + " gems");
+    render();
+  }
+}
+
+function nextMilestone() {
+  const milestones = [100,1000,10000,100000,1000000,10000000];
+  return milestones.find(m=>state.lifetime < m) || milestones[milestones.length-1];
+}
+
+function render() {
+  document.getElementById("zayens").innerText = fmt(state.zayens);
+  document.getElementById("perClick").innerText = fmt(perClick());
+  document.getElementById("perSecond").innerText = fmt(perSecond());
+  document.getElementById("multiplier").innerText = totalMultiplier().toFixed(2);
+  document.getElementById("gems").innerText = fmt(state.gems);
+  document.getElementById("stars").innerText = fmt(state.stars);
+  document.getElementById("level").innerText = state.level;
+  document.getElementById("xp").innerText = fmt(state.xp);
+  document.getElementById("xpNeed").innerText = fmt(xpNeed());
+  document.getElementById("xpFill").style.width = Math.min(100, state.xp / xpNeed() * 100) + "%";
+  document.getElementById("areaName").innerText = areas.find(a=>a.id===state.currentArea).name;
+  document.getElementById("streak").innerText = state.streak;
+  document.getElementById("prestigeGain").innerText = prestigeGain();
+
+  const milestone = nextMilestone();
+  document.getElementById("milestoneText").innerText = "Reach " + fmt(milestone) + " lifetime Zayens";
+  document.getElementById("milestoneFill").style.width = Math.min(100, state.lifetime / milestone * 100) + "%";
+
+  document.getElementById("powerupText").innerText =
+    Date.now() < state.powerupUntil ? "x3 Frenzy active: " + Math.ceil((state.powerupUntil-Date.now())/1000) + "s left" : "No active power-up.";
+
+  document.getElementById("upgradeList").innerHTML = upgrades.map(u=>{
+    const cost = upgradeCost(u);
+    return `<div class="upgrade"><div class="row"><div><h3>${u.name}</h3><div class="small">${u.desc}<br>Owned: ${state.upgrades[u.id]||0}</div></div><button ${state.zayens<cost?"disabled":""} onclick="buyUpgrade('${u.id}')">${fmt(cost)}</button></div></div>`;
+  }).join("");
+
+  document.getElementById("generatorList").innerHTML = generators.map(g=>{
+    const cost = generatorCost(g);
+    return `<div class="upgrade"><div class="row"><div><h3>${g.name}</h3><div class="small">${g.desc}<br>Owned: ${state.generators[g.id]||0}</div></div><button ${state.zayens<cost?"disabled":""} onclick="buyGenerator('${g.id}')">${fmt(cost)}</button></div></div>`;
+  }).join("");
+
+  document.getElementById("skillList").innerHTML = skills.map(s=>{
+    const owned = state.skills[s.id];
+    return `<div class="skill"><div class="row"><div><h3>${s.name}</h3><div class="small">${s.desc}</div></div><button ${owned||state.gems<s.cost?"disabled":""} onclick="buySkill('${s.id}')">${owned?"Owned":s.cost+" gems"}</button></div></div>`;
+  }).join("");
+
+  document.getElementById("achievementList").innerHTML = achievements.map(a=>{
+    const done = !!state.achievements[a.id];
+    return `<div class="achievement"><b>${done?"✅":"⬜"} ${a.name}</b><div class="small">Reward: ${a.reward} gems</div></div>`;
+  }).join("");
+
+  document.getElementById("questList").innerHTML = quests.map(q=>{
+    const done = !!state.achievements["quest_"+q.id];
+    const progress = Math.min(q.progress(), q.need);
+    return `<div class="quest"><div class="row"><div><b>${done?"✅":""} ${q.name}</b><div class="progress"><div class="fill" style="width:${Math.min(100,progress/q.need*100)}%"></div></div><div class="small">${fmt(progress)} / ${fmt(q.need)} • Reward ${q.reward} gems</div></div><button ${done||progress<q.need?"disabled":""} onclick="collectQuest('${q.id}')">Claim</button></div></div>`;
+  }).join("");
+
+  document.getElementById("areaList").innerHTML = areas.map(a=>{
+    const unlocked = !!state.areas[a.id];
+    return `<div class="area"><div class="row"><div><h3>${a.name}</h3><div class="small">Production x${a.mult} • Unlock at ${fmt(a.need)} lifetime Zayens</div></div><button ${state.lifetime<a.need?"disabled":""} onclick="${unlocked?`setArea('${a.id}')`:`unlockArea('${a.id}')`}">${unlocked?(state.currentArea===a.id?"Active":"Travel"):"Unlock"}</button></div></div>`;
+  }).join("");
+}
+
+function showTab(id, btn) {
+  const parent = btn.parentElement.parentElement;
+  parent.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  parent.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  btn.classList.add("active");
+}
+
+function floatingText(text, x, y) {
+  const el = document.createElement("div");
+  el.className = "float";
+  el.textContent = text;
+  el.style.left = x + "px";
+  el.style.top = y + "px";
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 900);
+}
+
+function particles(x,y) {
+  for (let i=0;i<10;i++) {
+    const p = document.createElement("div");
+    p.className = "particle";
+    p.style.left = x + "px";
+    p.style.top = y + "px";
+    p.style.setProperty("--x", (Math.random()*120-60)+"px");
+    p.style.setProperty("--y", (Math.random()*120-90)+"px");
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 700);
+  }
+}
+
+function toast(msg) {
+  floatingText(msg, window.innerWidth/2, 90);
+}
+
+function saveGame(manual=false) {
+  state.lastSave = Date.now();
+  localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  
+document.getElementById("autosaveText").textContent = manual ? "Saved!" : "Autosaved";
+setTimeout(()=>{
+  const el = document.getElementById("autosaveText");
+  if (el) el.textContent = "Autosaving...";
+}, 2500);
+
+if (manual) toast("Saved!");
+
+}
+
+function loadGame() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) return;
+  try {
+    const saved = JSON.parse(raw);
+    state = {...state, ...saved};
+    const elapsed = Math.min(28800000, Date.now() - (state.lastSave || Date.now()));
+    const offline = perSecond() * elapsed / 1000;
+    if (offline > 1) {
+      earn(offline);
+      setTimeout(()=>alert("Offline earnings: " + fmt(offline) + " Zayens"), 300);
+    }
+  } catch(e) {
+    console.warn("Save could not be loaded.");
+  }
+}
+
+function hardReset() {
+  if (!confirm("Delete all saved progress?")) return;
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
+document.getElementById("zayen").addEventListener("click", clickZayen);
+
+loadGame();
+checkAchievements();
+render();
+
+setInterval(()=>{
+  earn(perSecond());
+  checkAchievements();
+  render();
+}, 1000);
+
+setInterval(()=>saveGame(false), 5000);
+window.addEventListener("beforeunload", ()=>saveGame(false));
+</script>
+</body>
+</html>
