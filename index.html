@@ -301,7 +301,7 @@ body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0
   <div id="rewards" class="panel">
     <h2>Loot Box</h2>
     <p class="small">Costs 5 gems. Gives random Zayens, a multiplier burst, or bonus gems.</p>
-    <button onclick="openLootBox()">Open Loot Box (5 💎)</button>
+    <button onclick="openLootBox()">Open Loot Box (4 💎)</button>
 
     <h2>Star Loot Box</h2>
     <p class="small">Costs 2 ⭐. Massive rewards — big Zayen dump, extended frenzy, or gem shower.</p>
@@ -319,7 +319,7 @@ body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0
 
     <h2>Lucky Spin</h2>
     <p class="small">Costs 3 gems. Spin for a mystery reward — could be great or just okay.</p>
-    <button onclick="luckySpin()">Spin (3 💎)</button>
+    <button onclick="luckySpin()">Spin (2 💎)</button>
     <p id="spinResult" class="small"></p>
 
     <h2>Streak</h2>
@@ -704,23 +704,27 @@ function claimDaily() {
 }
 
 function openLootBox() {
-  if (state.gems < 5) return alert("Need 5 gems.");
-  state.gems -= 5;
+  if (state.gems < 4) return alert("Need 4 gems.");
+  state.gems -= 4;
   const luckMult = skillOwned("lootLuck") ? 1.75 : 1;
   const frenzyMult = skillOwned("frenzyMaster") ? 1.5 : 1;
   const roll = Math.random();
-  if (roll < .45) {
-    const amount = Math.max(250, perSecond() * 90 + perClick() * 50) * luckMult;
+  if (roll < 0.30) {
+    const amount = Math.max(1000, perSecond() * 300) * luckMult;
     earn(amount);
-    toast("Loot: +" + fmt(amount) + " Zayens");
-  } else if (roll < .75) {
-    const duration = 15000 * frenzyMult;
+    toast("Loot: +" + fmt(amount) + " Zayens (5min)");
+  } else if (roll < 0.55) {
+    const amount = Math.max(2000, perSecond() * 600) * luckMult;
+    earn(amount);
+    toast("Loot: +" + fmt(amount) + " Zayens (10min)!");
+  } else if (roll < 0.75) {
+    const duration = 45000 * frenzyMult;
     state.powerupUntil = Date.now() + duration;
-    toast("Loot: " + Math.round(duration/1000) + "s x3 frenzy");
+    toast("Loot: " + Math.round(duration/1000) + "s x3 frenzy!");
   } else {
-    const gemReward = Math.floor(8 * luckMult);
+    const gemReward = Math.floor(15 * luckMult);
     state.gems += gemReward;
-    toast("Loot: +" + gemReward + " gems");
+    toast("Loot: +" + gemReward + " gems!");
   }
   render();
 }
@@ -745,17 +749,26 @@ function activateMegaFrenzy() {
 function openStarLootBox() {
   if (state.stars < 2) return alert("Need 2 Prestige Stars.");
   state.stars -= 2;
+  const frenzyMult = skillOwned("frenzyMaster") ? 1.5 : 1;
   const roll = Math.random();
-  if (roll < 0.4) {
-    const amount = Math.max(10000, perSecond() * 600 + perClick() * 300);
+  if (roll < 0.10) {
+    state.stars += 1;
+    state.gems += 20;
+    toast("Star Loot: JACKPOT! +1 star & +20 gems!");
+  } else if (roll < 0.35) {
+    const amount = Math.max(50000, perSecond() * 1800);
     earn(amount);
-    toast("Star Loot: +" + fmt(amount) + " Zayens!");
-  } else if (roll < 0.7) {
-    const frenzyMult = skillOwned("frenzyMaster") ? 1.5 : 1;
-    state.powerupUntil = Date.now() + 120000 * frenzyMult;
-    toast("Star Loot: 2min x3 frenzy!");
+    toast("Star Loot: +" + fmt(amount) + " Zayens (30min)!");
+  } else if (roll < 0.60) {
+    const amount = Math.max(20000, perSecond() * 900);
+    earn(amount);
+    toast("Star Loot: +" + fmt(amount) + " Zayens (15min)!");
+  } else if (roll < 0.80) {
+    const duration = 300000 * frenzyMult;
+    state.powerupUntil = Date.now() + duration;
+    toast("Star Loot: " + Math.round(duration/1000) + "s x3 frenzy!");
   } else {
-    const gemReward = 20 + Math.floor(Math.random() * 20);
+    const gemReward = 40 + Math.floor(Math.random() * 30);
     state.gems += gemReward;
     toast("Star Loot: +" + gemReward + " gems!");
   }
@@ -779,30 +792,31 @@ function exchangeStarForGems() {
 }
 
 function luckySpin() {
-  if (state.gems < 3) return alert("Need 3 gems.");
-  state.gems -= 3;
+  if (state.gems < 2) return alert("Need 2 gems.");
+  state.gems -= 2;
   const roll = Math.random();
   let result = "";
-  if (roll < 0.05) {
+  if (roll < 0.04) {
     state.stars += 1;
-    result = "JACKPOT! +1 Prestige Star! ⭐";
-  } else if (roll < 0.15) {
     state.gems += 15;
-    result = "Lucky! +15 gems 💎";
-  } else if (roll < 0.35) {
-    const amount = Math.max(500, perSecond() * 120);
+    result = "JACKPOT! +1 Star & +15 gems! ⭐";
+  } else if (roll < 0.12) {
+    state.gems += 25;
+    result = "Lucky! +25 gems 💎";
+  } else if (roll < 0.27) {
+    const amount = Math.max(1000, perSecond() * 300);
     earn(amount);
-    result = "Nice! +" + fmt(amount) + " Zayens";
-  } else if (roll < 0.55) {
-    state.gems += 5;
-    result = "+5 gems 💎";
-  } else if (roll < 0.75) {
-    const amount = Math.max(100, perClick() * 20);
+    result = "Big haul! +" + fmt(amount) + " Zayens";
+  } else if (roll < 0.47) {
+    const amount = Math.max(500, perSecond() * 90);
     earn(amount);
     result = "+" + fmt(amount) + " Zayens";
+  } else if (roll < 0.70) {
+    state.gems += 8;
+    result = "+8 gems 💎";
   } else {
-    state.gems += 1;
-    result = "Just +1 gem... better luck next time.";
+    state.gems += 3;
+    result = "+3 gems 💎";
   }
   document.getElementById("spinResult").innerText = "Result: " + result;
   toast("Spin: " + result);
