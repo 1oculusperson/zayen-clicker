@@ -165,8 +165,20 @@ button:disabled {
   margin:3px;
 }
 .unlock { color:var(--green); font-weight:bold; }
+.panel { max-height:68vh; overflow-y:auto; padding-right:3px; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.2) transparent; }
+.subtabs { display:flex; gap:6px; margin-bottom:10px; }
+.subtab { background:rgba(255,255,255,.13); color:white; font-size:.88rem; padding:6px 11px; border-radius:10px; }
+.subtab.active { background:var(--blue); color:#111; }
+.subpanel { display:none; }
+.subpanel.active { display:block; }
+.buy-toggle { display:flex; gap:5px; margin-bottom:10px; }
+.amt-btn { background:rgba(255,255,255,.13); color:white; font-size:.82rem; padding:5px 9px; border-radius:8px; border:0; cursor:pointer; font-family:inherit; }
+.amt-btn:hover { filter:brightness(1.15); }
+.amt-btn.active { background:var(--green); color:#111; font-weight:bold; }
+.skill-cat-header { font-size:.85rem; font-weight:600; opacity:.6; margin:14px 0 6px; text-transform:uppercase; letter-spacing:.06em; }
 @media (max-width:1000px) {
   .layout { grid-template-columns:1fr; }
+  .panel { max-height:none; }
 }
 @keyframes glitch {
   0%,88%,100%{transform:none;text-shadow:none;clip-path:none}
@@ -250,15 +262,33 @@ body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0
   </div>
 
   <div id="upgrades" class="panel active">
-    <h2>Click Upgrades</h2>
+    <div class="buy-toggle">
+      <button class="amt-btn active" onclick="setBuyAmt(1,this)">×1</button>
+      <button class="amt-btn" onclick="setBuyAmt(10,this)">×10</button>
+      <button class="amt-btn" onclick="setBuyAmt(25,this)">×25</button>
+      <button class="amt-btn" onclick="setBuyAmt('max',this)">MAX</button>
+    </div>
     <div id="upgradeList"></div>
   </div>
 
   <div id="automation" class="panel">
-    <h2>Generators</h2>
-    <div id="generatorList"></div>
-    <h2>Offline Earnings</h2>
-    <p class="small">When you come back, you earn up to 8 hours of idle production.</p>
+    <div class="subtabs">
+      <button class="subtab active" onclick="showSubTab('genBuy',this)">Buy</button>
+      <button class="subtab" onclick="showSubTab('genSpeedTab',this)">Speed</button>
+    </div>
+    <div id="genBuy" class="subpanel active">
+      <div class="buy-toggle">
+        <button class="amt-btn active" onclick="setBuyAmt(1,this)">×1</button>
+        <button class="amt-btn" onclick="setBuyAmt(10,this)">×10</button>
+        <button class="amt-btn" onclick="setBuyAmt(25,this)">×25</button>
+        <button class="amt-btn" onclick="setBuyAmt('max',this)">MAX</button>
+      </div>
+      <div id="generatorList"></div>
+    </div>
+    <div id="genSpeedTab" class="subpanel">
+      <div id="speedList"></div>
+    </div>
+    <p class="small" style="margin-top:10px;opacity:.55">Offline: up to 8 hours earned on return.</p>
   </div>
 
   <div id="skills" class="panel">
@@ -287,10 +317,12 @@ body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0
   </div>
 
   <div id="goals" class="panel active">
-    <h2>Quests</h2>
-    <div id="questList"></div>
-    <h2>Achievements</h2>
-    <div id="achievementList"></div>
+    <div class="subtabs">
+      <button class="subtab active" onclick="showSubTab('questPanel',this)">Quests</button>
+      <button class="subtab" onclick="showSubTab('achievePanel',this)">Achievements</button>
+    </div>
+    <div id="questPanel" class="subpanel active"><div id="questList"></div></div>
+    <div id="achievePanel" class="subpanel"><div id="achievementList"></div></div>
   </div>
 
   <div id="areas" class="panel">
@@ -352,8 +384,7 @@ let state = {
   currentArea:"classroom",
   powerupUntil:0,
   megaFrenzy:false,
-  gemRainTimer:0,
-  waveHit:false
+  gemRainTimer:0
 };
 
 const upgrades = [
@@ -383,12 +414,18 @@ const skills = [
   {id:"xpBoost", name:"XP Boost", desc:"+30% XP gain", cost:10},
   {id:"critStrike", name:"Critical Strike", desc:"15% chance for clicks to deal 5x", cost:15},
   {id:"autoTap", name:"Auto Tapper", desc:"Automatically clicks once per second", cost:25},
-  {id:"lootLuck", name:"Lucky Looter", desc:"Loot box rewards +75%", cost:12},
+  {id:"lootLuck", name:"Gem Finder", desc:"1% chance per click to find a gem", cost:12},
   {id:"frenzyMaster", name:"Frenzy Master", desc:"Power-ups last 50% longer", cost:18},
   {id:"genMastery", name:"Generator Mastery", desc:"All generators produce +30%", cost:20},
   {id:"dailyBlessing", name:"Daily Blessing", desc:"Daily reward gives 2x gems", cost:10},
   {id:"starlight", name:"Starlight", desc:"Each Prestige Star gives +12% (was 8%)", cost:35},
-  {id:"comboMaster", name:"Combo Master", desc:"Every 25 clicks awards 1 gem", cost:15}
+  {id:"comboMaster", name:"Combo Master", desc:"Every 25 clicks awards 1 gem", cost:15},
+  {id:"deepRoots", name:"Deep Roots", desc:"+15% click power per generator type owned", cost:18},
+  {id:"areaMastery", name:"Area Mastery", desc:"+25% production in all areas", cost:20},
+  {id:"starSynergy", name:"Star Synergy", desc:"+0.5% total production per Prestige Star", cost:35},
+  {id:"xpRush", name:"XP Rush", desc:"+50% XP gain", cost:18},
+  {id:"gemEfficiency", name:"Gem Efficiency", desc:"All gem costs reduced by 20%", cost:15},
+  {id:"voidTouch", name:"Void Touch", desc:"+20% total production", cost:50}
 ];
 
 const starUpgrades = [
@@ -483,22 +520,35 @@ function nebulaWisdomMult() { return 1 + starUpgradeLevel("nebulaWisdom") * 0.25
 function astralCritChance() { return starUpgradeLevel("astralLuck") * 0.10; }
 function critChance() { return (skillOwned("critStrike") ? 0.15 : 0) + astralCritChance(); }
 function discountMult() { return (skillOwned("discounts") ? .9 : 1) * blackHoleDiscount(); }
+function gemCostMult() { return skillOwned("gemEfficiency") ? 0.8 : 1; }
 function clickSkillMult() { return skillOwned("tapMastery") ? 1.2 : 1; }
 function idleSkillMult() { return skillOwned("idleMastery") ? 1.2 : 1; }
-function xpSkillMult() { return (skillOwned("xpBoost") ? 1.3 : 1) * nebulaWisdomMult(); }
+function xpSkillMult() {
+  let m = nebulaWisdomMult();
+  if (skillOwned("xpBoost")) m *= 1.3;
+  if (skillOwned("xpRush")) m *= 1.5;
+  return m;
+}
 function starMult() { return 1 + state.stars * (skillOwned("starlight") ? 0.12 : 0.08); }
 function areaMult() { return areas.find(a=>a.id===state.currentArea).mult; }
 function powerupMult() {
   if (Date.now() >= state.powerupUntil) return 1;
   return state.megaFrenzy ? 5 : 3;
 }
+function deepRootsMult() {
+  if (!skillOwned("deepRoots")) return 1;
+  return 1 + generators.filter(g=>(state.generators[g.id]||0)>0).length * 0.15;
+}
+function starSynergyMult() { return 1 + (skillOwned("starSynergy") ? state.stars * 0.005 : 0); }
 
 function totalMultiplier() {
-  return state.multiplier * starMult() * areaMult() * powerupMult() * stellarPowerMult();
+  return state.multiplier * starMult() * areaMult() * powerupMult() * stellarPowerMult()
+    * (skillOwned("voidTouch") ? 1.2 : 1)
+    * (skillOwned("areaMastery") ? 1.25 : 1);
 }
 
 function perClick() {
-  return state.clickPower * totalMultiplier() * clickSkillMult() * cosmicClickMult();
+  return state.clickPower * totalMultiplier() * clickSkillMult() * cosmicClickMult() * deepRootsMult();
 }
 
 const speedTiers = [1, 2, 3, 5, 8, 12];
@@ -525,7 +575,7 @@ function baseCps() {
 }
 
 function perSecond() {
-  return baseCps() * totalMultiplier() * idleSkillMult() * galaxyEngineMult();
+  return baseCps() * totalMultiplier() * idleSkillMult() * galaxyEngineMult() * starSynergyMult();
 }
 
 function upgradeCost(u) {
@@ -569,6 +619,10 @@ function clickZayen(e) {
     state.gems += 1;
     toast("Combo gem!");
   }
+  if (skillOwned("lootLuck") && Math.random() < 0.01) {
+    state.gems += 1;
+    floatingText("💎+1", e.clientX, e.clientY - 30);
+  }
 
   const img = document.getElementById("zayen");
   img.style.transform = "scale(.92)";
@@ -584,29 +638,65 @@ function clickZayen(e) {
   render();
 }
 
+let _buyAmt = 1;
+
+function bulkCost(base, scale, owned, n, disc) {
+  return base * Math.pow(scale, owned) * (Math.pow(scale, n) - 1) / (scale - 1) * disc;
+}
+
+function maxBuyableN(base, scale, owned, budget, disc) {
+  const first = base * Math.pow(scale, owned) * disc;
+  if (first > budget) return 0;
+  return Math.max(1, Math.floor(Math.log(budget * (scale - 1) / first + 1) / Math.log(scale)));
+}
+
+function setBuyAmt(amt, btn) {
+  _buyAmt = amt;
+  document.querySelectorAll(".amt-btn").forEach(b => {
+    b.classList.toggle("active", b.textContent === btn.textContent);
+  });
+}
+
+function showSubTab(id, btn) {
+  const container = btn.closest(".subtabs").parentElement;
+  container.querySelectorAll(".subpanel").forEach(p => p.classList.remove("active"));
+  btn.closest(".subtabs").querySelectorAll(".subtab").forEach(t => t.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  btn.classList.add("active");
+}
+
 function buyUpgrade(id) {
   const u = upgrades.find(x=>x.id===id);
-  const cost = upgradeCost(u);
+  const owned = state.upgrades[id] || 0;
+  const disc = discountMult();
+  const n = _buyAmt === "max" ? maxBuyableN(u.base, u.scale, owned, state.zayens, disc) : _buyAmt;
+  if (n < 1) return;
+  const cost = bulkCost(u.base, u.scale, owned, n, disc);
   if (state.zayens < cost) return;
   state.zayens -= cost;
-  state.upgrades[id] = (state.upgrades[id] || 0) + 1;
-  u.effect();
+  for (let i = 0; i < n; i++) { state.upgrades[id] = (state.upgrades[id] || 0) + 1; u.effect(); }
   render();
 }
 
 function buyGenerator(id) {
   const g = generators.find(x=>x.id===id);
-  const cost = generatorCost(g);
+  const owned = state.generators[id] || 0;
+  const disc = discountMult();
+  const n = _buyAmt === "max" ? maxBuyableN(g.base, g.scale, owned, state.zayens, disc) : _buyAmt;
+  if (n < 1) return;
+  const cost = bulkCost(g.base, g.scale, owned, n, disc);
   if (state.zayens < cost) return;
   state.zayens -= cost;
-  state.generators[id] = (state.generators[id] || 0) + 1;
+  state.generators[id] = owned + n;
   render();
 }
 
 function buySkill(id) {
   const s = skills.find(x=>x.id===id);
-  if (state.skills[id] || state.gems < s.cost) return;
-  state.gems -= s.cost;
+  if (state.skills[id]) return;
+  const cost = Math.ceil(s.cost * gemCostMult());
+  if (state.gems < cost) return;
+  state.gems -= cost;
   state.skills[id] = true;
   render();
 }
@@ -658,8 +748,7 @@ function prestige() {
     genSpeed:state.genSpeed,
     achievements:state.achievements,
     streak:state.streak,
-    lastDaily:state.lastDaily,
-    waveHit:state.waveHit
+    lastDaily:state.lastDaily
   };
   const supernovaLvl = state.starUpgrades.supernova || 0;
   const startZayens = supernovaLvl > 0 ? 100 * Math.pow(8, supernovaLvl - 1) : 0;
@@ -667,7 +756,7 @@ function prestige() {
     zayens:startZayens,lifetime:startZayens,totalClicks:0,clickPower:1,multiplier:1,gems:keep.gems,stars:keep.stars,
     level:1,xp:0,streak:keep.streak,lastDaily:keep.lastDaily,lastSave:Date.now(),
     upgrades:{},generators:{},genSpeed:keep.genSpeed,skills:keep.skills,starUpgrades:keep.starUpgrades,achievements:keep.achievements,
-    areas:{classroom:true},currentArea:"classroom",powerupUntil:0,megaFrenzy:false,gemRainTimer:0,waveHit:keep.waveHit
+    areas:{classroom:true},currentArea:"classroom",powerupUntil:0,megaFrenzy:false,gemRainTimer:0
   };
   saveGame(true);
   render();
@@ -854,18 +943,6 @@ function tickCorruption() {
 }
 // ───────────────────────────────────────────────────────────────
 
-function checkWave() {
-  if (state.waveHit || state.lifetime < 1e12) return;
-  state.waveHit = true;
-  state.zayens *= 0.25;
-  let flashes = 0;
-  const flash = setInterval(()=>{
-    document.body.style.filter = flashes % 2 === 0 ? "invert(1) hue-rotate(180deg)" : "";
-    if (++flashes >= 6) { clearInterval(flash); document.body.style.filter = ""; }
-  }, 160);
-  toast("T H E   W A V E");
-  setTimeout(()=>toast("zayen has pushed back... 75% of your Zayens swept away."), 1800);
-}
 
 function nextMilestone() {
   const milestones = [100,1000,10000,100000,1e6,1e7,1e9,1e12,1e15,1e18,1e21];
@@ -898,36 +975,45 @@ function render() {
       : "No active power-up.";
 
   document.getElementById("upgradeList").innerHTML = upgrades.map(u=>{
-    const cost = upgradeCost(u);
-    return `<div class="upgrade"><div class="row"><div><h3>${u.name}</h3><div class="small">${u.desc}<br>Owned: ${state.upgrades[u.id]||0}</div></div><button ${state.zayens<cost?"disabled":""} onclick="buyUpgrade('${u.id}')">${fmt(cost)}</button></div></div>`;
+    const owned = state.upgrades[u.id] || 0;
+    const disc = discountMult();
+    const n = _buyAmt === "max" ? maxBuyableN(u.base, u.scale, owned, state.zayens, disc) : _buyAmt;
+    const cost = n > 0 ? bulkCost(u.base, u.scale, owned, n, disc) : Infinity;
+    const label = n > 1 ? `×${n} — ${fmt(cost)}` : fmt(cost);
+    return `<div class="upgrade"><div class="row"><div><h3>${u.name}</h3><div class="small">${u.desc}<br>Owned: ${owned}</div></div><button ${state.zayens<cost||n<1?"disabled":""} onclick="buyUpgrade('${u.id}')">${label}</button></div></div>`;
   }).join("");
 
   document.getElementById("generatorList").innerHTML = generators.map(g=>{
-    const cost = generatorCost(g);
+    const owned = state.generators[g.id] || 0;
+    const disc = discountMult();
+    const n = _buyAmt === "max" ? maxBuyableN(g.base, g.scale, owned, state.zayens, disc) : _buyAmt;
+    const cost = n > 0 ? bulkCost(g.base, g.scale, owned, n, disc) : Infinity;
+    const speedMult = speedTiers[state.genSpeed[g.id] || 0];
+    const label = n > 1 ? `×${n} — ${fmt(cost)}` : fmt(cost);
+    return `<div class="upgrade"><div class="row"><div><h3>${getCursedGenName(g)} <span style="color:var(--gold);font-size:.85rem">⚡${speedMult}x</span></h3><div class="small">${g.cps * speedMult}/sec each • Owned: ${owned}</div></div><button ${state.zayens<cost||n<1?"disabled":""} onclick="buyGenerator('${g.id}')">${label}</button></div></div>`;
+  }).join("");
+
+  document.getElementById("speedList").innerHTML = generators.map(g=>{
     const speedLvl = state.genSpeed[g.id] || 0;
     const speedMult = speedTiers[speedLvl];
     const maxSpeed = speedLvl >= speedTiers.length - 1;
     const speedCost = genSpeedCost(g);
-    const speedLabel = speedMult > 1 ? `⚡${speedMult}x` : "1x";
-    return `<div class="upgrade">
-      <div class="row">
-        <div>
-          <h3>${getCursedGenName(g)} <span style="color:var(--gold);font-size:.85rem">${speedLabel}</span></h3>
-          <div class="small">${g.cps * speedMult}/sec each • Owned: ${state.generators[g.id]||0}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-          <button ${state.zayens<cost?"disabled":""} onclick="buyGenerator('${g.id}')">Buy ${fmt(cost)}</button>
-          <button style="font-size:.8rem;padding:6px 10px;background:var(--blue);color:#111" ${maxSpeed||state.zayens<speedCost?"disabled":""} onclick="buyGenSpeed('${g.id}')">
-            ${maxSpeed ? "MAX SPEED" : `⚡ Speed ${speedLvl+1} — ${fmt(speedCost)}`}
-          </button>
-        </div>
-      </div>
-    </div>`;
+    return `<div class="upgrade"><div class="row"><div><h3>${g.name}</h3><div class="small">Current: ${speedMult}x • ${maxSpeed ? "MAX SPEED" : "Next: " + speedTiers[speedLvl+1] + "x"}</div></div><button style="background:var(--blue);color:#111" ${maxSpeed||state.zayens<speedCost?"disabled":""} onclick="buyGenSpeed('${g.id}')">${maxSpeed ? "MAX" : fmt(speedCost)}</button></div></div>`;
   }).join("");
 
-  document.getElementById("skillList").innerHTML = skills.map(s=>{
-    const owned = state.skills[s.id];
-    return `<div class="skill"><div class="row"><div><h3>${s.name}</h3><div class="small">${s.desc}</div></div><button ${owned||state.gems<s.cost?"disabled":""} onclick="buySkill('${s.id}')">${owned?"Owned":s.cost+" gems"}</button></div></div>`;
+  const _skillCats = [
+    {label:"Clicking",   ids:["tapMastery","critStrike","autoTap","comboMaster","deepRoots"]},
+    {label:"Production", ids:["idleMastery","genMastery","voidTouch","areaMastery","starSynergy"]},
+    {label:"Economy",    ids:["discounts","gemEfficiency","dailyBlessing","lootLuck"]},
+    {label:"Growth",     ids:["xpBoost","xpRush","frenzyMaster","starlight"]}
+  ];
+  document.getElementById("skillList").innerHTML = _skillCats.map(cat=>{
+    const catSkills = cat.ids.map(id=>skills.find(s=>s.id===id)).filter(Boolean);
+    return `<div class="skill-cat-header">${cat.label}</div>` + catSkills.map(s=>{
+      const owned = state.skills[s.id];
+      const cost = Math.ceil(s.cost * gemCostMult());
+      return `<div class="skill"><div class="row"><div><h3>${s.name}</h3><div class="small">${s.desc}</div></div><button ${owned||state.gems<cost?"disabled":""} onclick="buySkill('${s.id}')">${owned?"Owned":cost+" gems"}</button></div></div>`;
+    }).join("");
   }).join("");
 
   document.getElementById("starShopList").innerHTML = starUpgrades.map(s=>{
@@ -1063,7 +1149,6 @@ setInterval(()=>{
     }
     checkAchievements();
     tickCorruption();
-    checkWave();
   }
   render();
 }, TICK_MS);
@@ -1072,10 +1157,11 @@ setInterval(()=>saveGame(false), 5000);
 window.addEventListener("beforeunload", ()=>saveGame(false));
 
 // Expose only UI-triggered functions — state and earn stay private
-window.showTab=showTab; window.buyUpgrade=buyUpgrade; window.buyGenerator=buyGenerator;
+window.showTab=showTab; window.showSubTab=showSubTab; window.setBuyAmt=setBuyAmt;
+window.buyUpgrade=buyUpgrade; window.buyGenerator=buyGenerator;
 window.buySkill=buySkill; window.buyStarUpgrade=buyStarUpgrade; window.buyGenSpeed=buyGenSpeed;
 window.unlockArea=unlockArea; window.setArea=setArea; window.prestige=prestige;
-window.claimDaily=claimDaily; window.openLootBox=openLootBox; window.openStarLootBox=openStarLootBox;
+window.claimDaily=claimDaily;
 window.activatePowerup=activatePowerup; window.activateMegaFrenzy=activateMegaFrenzy;
 window.exchangeGemsForStar=exchangeGemsForStar; window.exchangeStarForGems=exchangeStarForGems;
 window.collectQuest=collectQuest;
