@@ -249,6 +249,75 @@ body.corrupt-4 #zayen{animation:vignette-pulse 4s infinite}
 body.corrupt-5 #zayen{animation:vignette-pulse 2s infinite}
 body.corrupt-5 .card{animation:flicker 15s infinite}
 body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0,.3)}
+/* ── Secret cheat panel ─────────────────────────────────────── */
+#secretZone {
+  position:absolute;
+  top:0; left:50%;
+  transform:translateX(-50%);
+  width:110px; height:100%;
+  cursor:default; z-index:6;
+}
+#codeModal {
+  display:none;
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.8);
+  z-index:180;
+  align-items:center;
+  justify-content:center;
+}
+#codeModal.active { display:flex; }
+.code-box {
+  background:#0b0b18;
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:18px;
+  padding:30px 26px;
+  text-align:center;
+  min-width:300px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+.code-lbl {
+  font-size:.72rem;
+  letter-spacing:.18em;
+  opacity:.35;
+  text-transform:uppercase;
+  margin-bottom:16px;
+}
+.code-input {
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:10px;
+  padding:12px 16px;
+  color:white;
+  font-family:monospace;
+  font-size:1.05rem;
+  width:100%;
+  outline:none;
+  text-align:center;
+  letter-spacing:.25em;
+  transition:border-color .2s;
+}
+.code-input:focus { border-color:rgba(255,255,255,.4); }
+#cheatPanel {
+  display:none;
+  position:fixed;
+  bottom:20px; right:20px;
+  z-index:90;
+  background:#0a0a18;
+  border:1px solid rgba(255,215,0,.3);
+  border-radius:18px;
+  padding:16px 18px;
+  min-width:280px;
+  box-shadow:0 10px 40px rgba(0,0,0,.55);
+  font-size:.88rem;
+}
+#cheatPanel.active { display:block; }
+.cheat-hdr { font-size:.72rem; letter-spacing:.14em; color:var(--gold); opacity:.7; text-transform:uppercase; margin-bottom:12px; }
+.cheat-sec { margin-bottom:11px; }
+.cheat-sec-lbl { font-size:.68rem; opacity:.38; text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
+.cheat-row { display:flex; gap:5px; flex-wrap:wrap; }
+.cb { background:rgba(255,255,255,.11); border:0; border-radius:8px; padding:5px 11px; color:white; font-size:.8rem; cursor:pointer; font-family:inherit; transition:background .15s; }
+.cb:hover { background:rgba(255,255,255,.22); }
+/* ─────────────────────────────────────────────────────────── */
 #infinityOverlay {
   display:none;
   position:fixed;
@@ -302,6 +371,7 @@ body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0
 <body>
 
 <header>
+  <div id="secretZone" onclick="secretClick()"></div>
   <div>
     <strong>Zayen Clicker</strong>
     <span class="small">Level <span id="level">1</span> • Area: <span id="areaName">Classroom</span></span>
@@ -452,6 +522,60 @@ body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0
 </section>
 
 </main>
+
+<!-- Secret code modal -->
+<div id="codeModal">
+  <div class="code-box">
+    <div class="code-lbl">▸ enter access code</div>
+    <input class="code-input" id="codeInput" type="password" placeholder="••••••••••••" onkeydown="if(event.key==='Enter')checkCode()" autocomplete="off">
+    <div style="display:flex;gap:8px;margin-top:14px;justify-content:center">
+      <button onclick="checkCode()">Confirm</button>
+      <button onclick="closeCodeModal()" style="background:rgba(255,255,255,.1);color:white">Cancel</button>
+    </div>
+    <div id="codeError" style="color:#ff4444;font-size:.8rem;margin-top:10px;display:none">access denied.</div>
+  </div>
+</div>
+
+<!-- Cheat panel -->
+<div id="cheatPanel">
+  <div class="cheat-hdr">🔓 Cheat Panel <span style="float:right;cursor:pointer;opacity:.4" onclick="document.getElementById('cheatPanel').classList.remove('active')">✕</span></div>
+  <div class="cheat-sec">
+    <div class="cheat-sec-lbl">Zayens</div>
+    <div class="cheat-row">
+      <button class="cb" onclick="cheatZayens(1e6)">+1M</button>
+      <button class="cb" onclick="cheatZayens(1e9)">+1B</button>
+      <button class="cb" onclick="cheatZayens(1e12)">+1T</button>
+      <button class="cb" onclick="cheatZayens(1e18)">+1Qi</button>
+      <button class="cb" onclick="cheatZayens(1e24)">+1Sp</button>
+    </div>
+  </div>
+  <div class="cheat-sec">
+    <div class="cheat-sec-lbl">Gems 💎</div>
+    <div class="cheat-row">
+      <button class="cb" onclick="cheatGems(10)">+10</button>
+      <button class="cb" onclick="cheatGems(100)">+100</button>
+      <button class="cb" onclick="cheatGems(1000)">+1K</button>
+    </div>
+  </div>
+  <div class="cheat-sec">
+    <div class="cheat-sec-lbl">Stars ⭐</div>
+    <div class="cheat-row">
+      <button class="cb" onclick="cheatStars(1)">+1</button>
+      <button class="cb" onclick="cheatStars(10)">+10</button>
+      <button class="cb" onclick="cheatStars(100)">+100</button>
+    </div>
+  </div>
+  <div class="cheat-sec">
+    <div class="cheat-sec-lbl">Actions</div>
+    <div class="cheat-row">
+      <button class="cb" onclick="cheatUnlockAreas()">All Areas</button>
+      <button class="cb" onclick="cheatAllSkills()">All Skills</button>
+      <button class="cb" onclick="cheatMaxGen()">+100 Gens</button>
+      <button class="cb" onclick="cheatBuyUpgrades()">+10 Upgrades</button>
+    </div>
+  </div>
+  <button class="cb" style="width:100%;margin-top:4px;background:rgba(255,215,0,.18);color:var(--gold)" onclick="cheatSave()">💾 Save</button>
+</div>
 
 <div id="infinityOverlay">
   <div class="inf-symbol">∞</div>
@@ -1344,6 +1468,45 @@ function loadGame() {
   }
 }
 
+let _cheatUnlocked = false;
+
+function secretClick() {
+  if (_cheatUnlocked) {
+    document.getElementById("cheatPanel").classList.toggle("active");
+    return;
+  }
+  const m = document.getElementById("codeModal");
+  m.classList.add("active");
+  document.getElementById("codeInput").value = "";
+  document.getElementById("codeError").style.display = "none";
+  setTimeout(()=>document.getElementById("codeInput").focus(), 60);
+}
+
+function checkCode() {
+  if (document.getElementById("codeInput").value.toLowerCase().trim() === "zayenclicker") {
+    _cheatUnlocked = true;
+    document.getElementById("codeModal").classList.remove("active");
+    document.getElementById("cheatPanel").classList.add("active");
+    toast("🔓 cheat mode activated");
+  } else {
+    document.getElementById("codeError").style.display = "block";
+    document.getElementById("codeInput").value = "";
+  }
+}
+
+function closeCodeModal() {
+  document.getElementById("codeModal").classList.remove("active");
+}
+
+function cheatZayens(n)    { earn(n); render(); saveGame(); }
+function cheatGems(n)      { state.gems += n; render(); saveGame(); }
+function cheatStars(n)     { state.stars += n; render(); saveGame(); }
+function cheatUnlockAreas(){ areas.forEach(a=>{state.areas[a.id]=true;}); render(); saveGame(); }
+function cheatAllSkills()  { skills.forEach(s=>{state.skills[s.id]=true;}); render(); saveGame(); }
+function cheatMaxGen()     { generators.forEach(g=>{state.generators[g.id]=(state.generators[g.id]||0)+100;}); render(); saveGame(); }
+function cheatBuyUpgrades(){ upgrades.forEach(u=>{for(let i=0;i<10;i++){state.upgrades[u.id]=(state.upgrades[u.id]||0)+1;u.effect();}}); render(); saveGame(); }
+function cheatSave()       { saveGame(true); }
+
 let _resetting = false;
 let _infinityCooldown = false;
 
@@ -1453,6 +1616,10 @@ window.activatePowerup=activatePowerup; window.activateMegaFrenzy=activateMegaFr
 window.exchangeGemsForStar=exchangeGemsForStar; window.exchangeStarForGems=exchangeStarForGems;
 window.collectQuest=collectQuest;
 window.saveGame=saveGame; window.hardReset=hardReset; window.chooseInfinityPath=chooseInfinityPath;
+window.secretClick=secretClick; window.checkCode=checkCode; window.closeCodeModal=closeCodeModal;
+window.cheatZayens=cheatZayens; window.cheatGems=cheatGems; window.cheatStars=cheatStars;
+window.cheatUnlockAreas=cheatUnlockAreas; window.cheatAllSkills=cheatAllSkills;
+window.cheatMaxGen=cheatMaxGen; window.cheatBuyUpgrades=cheatBuyUpgrades; window.cheatSave=cheatSave;
 })();
 </script>
 </body>
