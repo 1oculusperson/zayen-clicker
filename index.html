@@ -62,6 +62,7 @@ button:disabled {
   display:grid;
   grid-template-columns:1fr 1.1fr 1fr;
   gap:20px;
+  align-items:start;
 }
 .card {
   background:var(--card);
@@ -69,22 +70,47 @@ button:disabled {
   border-radius:20px;
   padding:18px;
   box-shadow:0 10px 30px rgba(0,0,0,.18);
+  transition:background .6s ease, border-color .6s ease;
 }
+.card.tabcard {
+  position:sticky;
+  top:80px;
+  display:flex;
+  flex-direction:column;
+  max-height:calc(100vh - 100px);
+  overflow:hidden;
+}
+.tabcard .tabs { flex-shrink:0; }
+.tabcard .panel { max-height:none !important; flex:1; overflow-y:auto; }
 .center { text-align:center; }
 .big-number {
   font-size:clamp(2rem,5vw,4rem);
   font-weight:900;
 }
-.substats {
-  line-height:1.7;
-  opacity:.95;
+/* stat grid replaces .substats */
+.statgrid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+  margin:14px 0;
 }
+.statbox {
+  background:rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:9px 8px;
+  transition:background .4s ease;
+}
+.statbox:hover { background:rgba(255,255,255,.13); }
+.statval { font-size:1.05rem; font-weight:700; }
+.statlbl { font-size:.7rem; opacity:.55; text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+.statwide { grid-column:span 2; }
 #zayen {
-  width:min(75vw,330px);
+  width:min(72vw,300px);
   border-radius:50%;
   cursor:pointer;
-  transition:transform .08s ease, box-shadow .25s ease;
-  box-shadow:0 0 35px rgba(255,255,255,.25);
+  transition:transform .08s ease, box-shadow .35s ease, border-color .6s ease;
+  box-shadow:0 0 0 4px rgba(255,255,255,.08), 0 0 30px rgba(255,191,77,.35);
+  border:3px solid var(--gold);
   user-select:none;
 }
 #zayen:active { transform:scale(.93); }
@@ -165,7 +191,7 @@ button:disabled {
   margin:3px;
 }
 .unlock { color:var(--green); font-weight:bold; }
-.panel { max-height:68vh; overflow-y:auto; padding-right:3px; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.2) transparent; }
+.panel { padding-right:3px; scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.2) transparent; }
 .subtabs { display:flex; gap:6px; margin-bottom:10px; }
 .subtab { background:rgba(255,255,255,.13); color:white; font-size:.88rem; padding:6px 11px; border-radius:10px; }
 .subtab.active { background:var(--blue); color:#111; }
@@ -178,7 +204,8 @@ button:disabled {
 .skill-cat-header { font-size:.85rem; font-weight:600; opacity:.6; margin:14px 0 6px; text-transform:uppercase; letter-spacing:.06em; }
 @media (max-width:1000px) {
   .layout { grid-template-columns:1fr; }
-  .panel { max-height:none; }
+  .card.tabcard { position:static; max-height:none; }
+  .tabcard .panel { overflow-y:visible; }
 }
 @keyframes glitch {
   0%,88%,100%{transform:none;text-shadow:none;clip-path:none}
@@ -195,6 +222,21 @@ button:disabled {
   0%,100%{box-shadow:inset 0 0 0px transparent}
   50%{box-shadow:inset 0 0 120px rgba(180,0,0,.35)}
 }
+/* ── Area themes (corruption rules below will override these) ─────────── */
+body.area-cafeteria  {--bg1:#1c1408;--bg2:#3d2a12;--gold:#ffcc44;--green:#aaee66;--blue:#ffaa44}
+body.area-gym        {--bg1:#1a0a08;--bg2:#3a1812;--gold:#ff7744;--green:#ffcc44;--blue:#ff6688}
+body.area-zayenverse {--bg1:#0e0820;--bg2:#2a1260;--gold:#cc88ff;--green:#88ffcc;--blue:#ff88dd;--card:rgba(180,100,255,.10)}
+body.area-library    {--bg1:#071a0e;--bg2:#0f3822;--gold:#44dd88;--green:#88ffaa;--blue:#44aacc}
+body.area-rooftop    {--bg1:#081520;--bg2:#103040;--gold:#88ccff;--green:#aaeeff;--blue:#44aaff}
+body.area-lair       {--bg1:#0a1a08;--bg2:#1a3a10;--gold:#88ff44;--green:#ccff88;--blue:#44ffaa;--card:rgba(100,255,50,.08)}
+body.area-station    {--bg1:#060910;--bg2:#101828;--gold:#aabbff;--green:#88ddff;--blue:#6699ff;--card:rgba(100,150,255,.08)}
+body.area-planet     {--bg1:#071408;--bg2:#103a10;--gold:#88ee88;--green:#ccffcc;--blue:#88ddff}
+body.area-void       {--bg1:#080310;--bg2:#180528;--gold:#aa44ff;--green:#5544aa;--blue:#3322aa;--card:rgba(120,50,255,.09)}
+body.area-nebula     {--bg1:#100010;--bg2:#280528;--gold:#ff88ff;--green:#cc44cc;--blue:#9944ff;--card:rgba(255,100,255,.08)}
+body.area-cosmos     {--bg1:#020208;--bg2:#050520;--gold:#ccccff;--green:#aaaaff;--blue:#8888ff;--card:rgba(150,150,255,.08)}
+body.area-beyond     {--bg1:#020205;--bg2:#05050a;--gold:#ddddff;--green:#aaaacc;--blue:#8888aa;--card:rgba(255,255,255,.06)}
+body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa;--blue:#cccccc;--card:rgba(255,255,255,.05)}
+/* ─────────────────────────────────────────────────────────────────────── */
 body.corrupt-1{--bg2:#3d2060}
 body.corrupt-2{--bg2:#4a1535;--bg1:#1a0810}
 body.corrupt-3{--bg2:#5a0a10;--bg1:#150505;--gold:#ff5555}
@@ -284,12 +326,26 @@ body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0
     <img id="zayen" src="cookie.png" alt="Zayen" />
   </div>
 
-  <div class="substats">
-    <span id="lbl_click">Per click</span>: <b id="perClick">1</b><br>
-    <span id="lbl_sec">Per second</span>: <b id="perSecond">0</b><br>
-    Multiplier: <b>x<span id="multiplier">1</span></b><br>
-    <span id="lbl_gems">Gems</span>: <b id="gems">0</b> 💎<br>
-    <span id="lbl_stars">Prestige Stars</span>: <b id="stars">0</b> ⭐
+  <div class="statgrid">
+    <div class="statbox">
+      <div class="statval" id="perClick">1</div>
+      <div class="statlbl" id="lbl_click">Per Click</div>
+    </div>
+    <div class="statbox">
+      <div class="statval" id="perSecond">0</div>
+      <div class="statlbl" id="lbl_sec">Per Second</div>
+    </div>
+    <div class="statbox">
+      <div class="statval">×<span id="multiplier">1.00</span></div>
+      <div class="statlbl">Multiplier</div>
+    </div>
+    <div class="statbox">
+      <div class="statval"><span id="gems">0</span> 💎</div>
+      <div class="statlbl" id="lbl_gems">Gems</div>
+    </div>
+    <div class="statbox statwide">
+      <div class="statval"><span id="stars">0</span> ⭐ <span id="lbl_stars" style="font-size:.82rem;font-weight:400;opacity:.7">Prestige Stars</span></div>
+    </div>
   </div>
 
   <h3>Level Progress</h3>
@@ -301,7 +357,7 @@ body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0
   <div class="small" id="milestoneText">Reach 100 Zayens</div>
 </section>
 
-<section class="card">
+<section class="card tabcard">
   <div class="tabs">
     <button class="tab active" onclick="showTab('upgrades', this)">Upgrades</button>
     <button class="tab" onclick="showTab('automation', this)">Automation</button>
@@ -358,7 +414,7 @@ body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0
   </div>
 </section>
 
-<section class="card">
+<section class="card tabcard">
   <div class="tabs">
     <button class="tab active" onclick="showTab('goals', this)">Goals</button>
     <button class="tab" onclick="showTab('areas', this)">Areas</button>
@@ -1200,10 +1256,17 @@ function render() {
     return `<div class="quest"><div class="row"><div><b>${done?"✅":""} ${q.name}</b><div class="progress"><div class="fill" style="width:${Math.min(100,progress/q.need*100)}%"></div></div><div class="small">${fmt(progress)} / ${fmt(q.need)} • Reward ${q.reward} gems</div></div><button ${done||progress<q.need?"disabled":""} onclick="collectQuest('${q.id}')">Claim</button></div></div>`;
   }).join("");
 
+  applyAreaTheme();
+
   document.getElementById("areaList").innerHTML = areas.map(a=>{
     const unlocked = !!state.areas[a.id];
     return `<div class="area"><div class="row"><div><h3>${a.name}</h3><div class="small">Production x${a.mult} • Unlock at ${fmt(a.need)} lifetime Zayens</div></div><button ${state.lifetime<a.need?"disabled":""} onclick="${unlocked?`setArea('${a.id}')`:`unlockArea('${a.id}')`}">${unlocked?(state.currentArea===a.id?"Active":"Travel"):"Unlock"}</button></div></div>`;
   }).join("");
+}
+
+function applyAreaTheme() {
+  document.body.className = document.body.className.replace(/\barea-\S+/g, "").trim();
+  document.body.classList.add("area-" + state.currentArea);
 }
 
 function showTab(id, btn) {
