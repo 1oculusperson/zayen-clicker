@@ -352,7 +352,8 @@ let state = {
   currentArea:"classroom",
   powerupUntil:0,
   megaFrenzy:false,
-  gemRainTimer:0
+  gemRainTimer:0,
+  waveHit:false
 };
 
 const upgrades = [
@@ -642,7 +643,7 @@ function setArea(id) {
 }
 
 function prestigeGain() {
-  return Math.floor(Math.sqrt(state.lifetime / 100000));
+  return Math.floor(Math.pow(state.lifetime / 1e10, 1/3));
 }
 
 function prestige() {
@@ -657,7 +658,8 @@ function prestige() {
     genSpeed:state.genSpeed,
     achievements:state.achievements,
     streak:state.streak,
-    lastDaily:state.lastDaily
+    lastDaily:state.lastDaily,
+    waveHit:state.waveHit
   };
   const supernovaLvl = state.starUpgrades.supernova || 0;
   const startZayens = supernovaLvl > 0 ? 100 * Math.pow(8, supernovaLvl - 1) : 0;
@@ -665,7 +667,7 @@ function prestige() {
     zayens:startZayens,lifetime:startZayens,totalClicks:0,clickPower:1,multiplier:1,gems:keep.gems,stars:keep.stars,
     level:1,xp:0,streak:keep.streak,lastDaily:keep.lastDaily,lastSave:Date.now(),
     upgrades:{},generators:{},genSpeed:keep.genSpeed,skills:keep.skills,starUpgrades:keep.starUpgrades,achievements:keep.achievements,
-    areas:{classroom:true},currentArea:"classroom",powerupUntil:0,megaFrenzy:false,gemRainTimer:0
+    areas:{classroom:true},currentArea:"classroom",powerupUntil:0,megaFrenzy:false,gemRainTimer:0,waveHit:keep.waveHit
   };
   saveGame(true);
   render();
@@ -851,6 +853,19 @@ function tickCorruption() {
   }
 }
 // ───────────────────────────────────────────────────────────────
+
+function checkWave() {
+  if (state.waveHit || state.lifetime < 1e12) return;
+  state.waveHit = true;
+  state.zayens *= 0.25;
+  let flashes = 0;
+  const flash = setInterval(()=>{
+    document.body.style.filter = flashes % 2 === 0 ? "invert(1) hue-rotate(180deg)" : "";
+    if (++flashes >= 6) { clearInterval(flash); document.body.style.filter = ""; }
+  }, 160);
+  toast("T H E   W A V E");
+  setTimeout(()=>toast("zayen has pushed back... 75% of your Zayens swept away."), 1800);
+}
 
 function nextMilestone() {
   const milestones = [100,1000,10000,100000,1e6,1e7,1e9,1e12,1e15,1e18,1e21];
@@ -1048,6 +1063,7 @@ setInterval(()=>{
     }
     checkAchievements();
     tickCorruption();
+    checkWave();
   }
   render();
 }, TICK_MS);
