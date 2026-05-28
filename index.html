@@ -242,6 +242,10 @@ button:disabled {
     <p>Reset Zayens, upgrades, and generators to earn Prestige Stars. Stars permanently boost production.</p>
     <p>You would gain <b id="prestigeGain">0</b> stars.</p>
     <button onclick="prestige()">Prestige Reset</button>
+
+    <h2 style="margin-top:24px">Star Shop ⭐</h2>
+    <p class="small">Spend Prestige Stars on permanent cosmic upgrades. Costs scale with level.</p>
+    <div id="starShopList"></div>
   </div>
 </section>
 
@@ -297,10 +301,12 @@ let state = {
   upgrades:{},
   generators:{},
   skills:{},
+  starUpgrades:{},
   achievements:{},
   areas:{classroom:true},
   currentArea:"classroom",
-  powerupUntil:0
+  powerupUntil:0,
+  gemRainTimer:0
 };
 
 const upgrades = [
@@ -318,10 +324,29 @@ const generators = [
 ];
 
 const skills = [
-  {id:"tapMastery", name:"Tap Mastery", desc:"+20% click power", cost:5, effect:"click"},
-  {id:"idleMastery", name:"Idle Mastery", desc:"+20% passive income", cost:5, effect:"idle"},
-  {id:"discounts", name:"Inflation Control", desc:"All costs 10% cheaper", cost:8, effect:"discount"},
-  {id:"xpBoost", name:"XP Boost", desc:"+30% XP gain", cost:10, effect:"xp"}
+  {id:"tapMastery", name:"Tap Mastery", desc:"+20% click power", cost:5},
+  {id:"idleMastery", name:"Idle Mastery", desc:"+20% passive income", cost:5},
+  {id:"discounts", name:"Inflation Control", desc:"All costs 10% cheaper", cost:8},
+  {id:"xpBoost", name:"XP Boost", desc:"+30% XP gain", cost:10},
+  {id:"critStrike", name:"Critical Strike", desc:"15% chance for clicks to deal 5x", cost:15},
+  {id:"autoTap", name:"Auto Tapper", desc:"Automatically clicks once per second", cost:25},
+  {id:"lootLuck", name:"Lucky Looter", desc:"Loot box rewards +75%", cost:12},
+  {id:"frenzyMaster", name:"Frenzy Master", desc:"Power-ups last 50% longer", cost:18},
+  {id:"genMastery", name:"Generator Mastery", desc:"All generators produce +30%", cost:20},
+  {id:"dailyBlessing", name:"Daily Blessing", desc:"Daily reward gives 2x gems", cost:10},
+  {id:"starlight", name:"Starlight", desc:"Each Prestige Star gives +12% (was 8%)", cost:35},
+  {id:"comboMaster", name:"Combo Master", desc:"Every 25 clicks awards 1 gem", cost:15}
+];
+
+const starUpgrades = [
+  {id:"stellarPower", name:"Stellar Power", desc:"+15% total production per level", base:1, max:25},
+  {id:"cosmicClick", name:"Cosmic Click", desc:"+50% click power per level", base:2, max:15},
+  {id:"galaxyEngine", name:"Galaxy Engine", desc:"+30% per-second per level", base:2, max:15},
+  {id:"astralLuck", name:"Astral Luck", desc:"+10% click crit chance per level", base:3, max:8},
+  {id:"nebulaWisdom", name:"Nebula Wisdom", desc:"+25% XP gain per level", base:2, max:10},
+  {id:"blackHole", name:"Black Hole", desc:"-3% all costs per level (compounding)", base:2, max:15},
+  {id:"supernova", name:"Supernova Start", desc:"Start each prestige with more Zayens", base:4, max:10},
+  {id:"gemRain", name:"Gem Rain", desc:"+1 gem per minute per level", base:5, max:10}
 ];
 
 const areas = [
@@ -354,28 +379,37 @@ function fmt(n) {
 }
 
 function skillOwned(id) { return !!state.skills[id]; }
-function discountMult() { return skillOwned("discounts") ? .9 : 1; }
+function starUpgradeLevel(id) { return state.starUpgrades[id] || 0; }
+function stellarPowerMult() { return 1 + starUpgradeLevel("stellarPower") * 0.15; }
+function cosmicClickMult() { return 1 + starUpgradeLevel("cosmicClick") * 0.5; }
+function galaxyEngineMult() { return 1 + starUpgradeLevel("galaxyEngine") * 0.3; }
+function blackHoleDiscount() { return Math.pow(0.97, starUpgradeLevel("blackHole")); }
+function nebulaWisdomMult() { return 1 + starUpgradeLevel("nebulaWisdom") * 0.25; }
+function astralCritChance() { return starUpgradeLevel("astralLuck") * 0.10; }
+function critChance() { return (skillOwned("critStrike") ? 0.15 : 0) + astralCritChance(); }
+function discountMult() { return (skillOwned("discounts") ? .9 : 1) * blackHoleDiscount(); }
 function clickSkillMult() { return skillOwned("tapMastery") ? 1.2 : 1; }
 function idleSkillMult() { return skillOwned("idleMastery") ? 1.2 : 1; }
-function xpSkillMult() { return skillOwned("xpBoost") ? 1.3 : 1; }
-function starMult() { return 1 + state.stars * .08; }
+function xpSkillMult() { return (skillOwned("xpBoost") ? 1.3 : 1) * nebulaWisdomMult(); }
+function starMult() { return 1 + state.stars * (skillOwned("starlight") ? 0.12 : 0.08); }
 function areaMult() { return areas.find(a=>a.id===state.currentArea).mult; }
 function powerupMult() { return Date.now() < state.powerupUntil ? 3 : 1; }
 
 function totalMultiplier() {
-  return state.multiplier * starMult() * areaMult() * powerupMult();
+  return state.multiplier * starMult() * areaMult() * powerupMult() * stellarPowerMult();
 }
 
 function perClick() {
-  return state.clickPower * totalMultiplier() * clickSkillMult();
+  return state.clickPower * totalMultiplier() * clickSkillMult() * cosmicClickMult();
 }
 
 function baseCps() {
-  return generators.reduce((sum,g)=>sum + (state.generators[g.id]||0) * g.cps, 0);
+  const genMult = skillOwned("genMastery") ? 1.3 : 1;
+  return generators.reduce((sum,g)=>sum + (state.generators[g.id]||0) * g.cps, 0) * genMult;
 }
 
 function perSecond() {
-  return baseCps() * totalMultiplier() * idleSkillMult();
+  return baseCps() * totalMultiplier() * idleSkillMult() * galaxyEngineMult();
 }
 
 function upgradeCost(u) {
@@ -409,14 +443,22 @@ function countGenerators() {
 }
 
 function clickZayen(e) {
-  earn(perClick());
+  const isCrit = Math.random() < critChance();
+  const mult = isCrit ? 5 : 1;
+  const gained = perClick() * mult;
+  earn(gained);
   state.totalClicks++;
+
+  if (skillOwned("comboMaster") && state.totalClicks % 25 === 0) {
+    state.gems += 1;
+    toast("Combo gem!");
+  }
 
   const img = document.getElementById("zayen");
   img.style.transform = "scale(.92)";
   setTimeout(()=>img.style.transform="scale(1)", 80);
 
-  floatingText("+" + fmt(perClick()), e.clientX, e.clientY);
+  floatingText((isCrit ? "CRIT! +" : "+") + fmt(gained), e.clientX, e.clientY);
   particles(e.clientX, e.clientY);
 
   if (state.totalClicks % 50 === 0) document.body.classList.add("shake");
@@ -453,6 +495,23 @@ function buySkill(id) {
   render();
 }
 
+function starUpgradeCost(s) {
+  const lvl = starUpgradeLevel(s.id);
+  return s.base * (lvl + 1);
+}
+
+function buyStarUpgrade(id) {
+  const s = starUpgrades.find(x=>x.id===id);
+  const lvl = starUpgradeLevel(id);
+  if (lvl >= s.max) return;
+  const cost = starUpgradeCost(s);
+  if (state.stars < cost) return;
+  state.stars -= cost;
+  state.starUpgrades[id] = lvl + 1;
+  toast(s.name + " +1");
+  render();
+}
+
 function unlockArea(id) {
   const a = areas.find(x=>x.id===id);
   if (state.lifetime < a.need) return;
@@ -479,15 +538,18 @@ function prestige() {
     gems:state.gems,
     stars:state.stars + gain,
     skills:state.skills,
+    starUpgrades:state.starUpgrades,
     achievements:state.achievements,
     streak:state.streak,
     lastDaily:state.lastDaily
   };
+  const supernovaLvl = state.starUpgrades.supernova || 0;
+  const startZayens = supernovaLvl > 0 ? 100 * Math.pow(8, supernovaLvl - 1) : 0;
   state = {
-    zayens:0,lifetime:0,totalClicks:0,clickPower:1,multiplier:1,gems:keep.gems,stars:keep.stars,
+    zayens:startZayens,lifetime:startZayens,totalClicks:0,clickPower:1,multiplier:1,gems:keep.gems,stars:keep.stars,
     level:1,xp:0,streak:keep.streak,lastDaily:keep.lastDaily,lastSave:Date.now(),
-    upgrades:{},generators:{},skills:keep.skills,achievements:keep.achievements,
-    areas:{classroom:true},currentArea:"classroom",powerupUntil:0
+    upgrades:{},generators:{},skills:keep.skills,starUpgrades:keep.starUpgrades,achievements:keep.achievements,
+    areas:{classroom:true},currentArea:"classroom",powerupUntil:0,gemRainTimer:0
   };
   saveGame(true);
   render();
@@ -504,7 +566,8 @@ function claimDaily() {
   else state.streak = 1;
 
   state.lastDaily = now;
-  const reward = 3 + state.streak;
+  let reward = 3 + state.streak;
+  if (skillOwned("dailyBlessing")) reward *= 2;
   state.gems += reward;
   earn(Math.max(100, perSecond() * 60 * state.streak));
   toast("Daily reward: +" + reward + " gems");
@@ -514,17 +577,21 @@ function claimDaily() {
 function openLootBox() {
   if (state.gems < 5) return alert("Need 5 gems.");
   state.gems -= 5;
+  const luckMult = skillOwned("lootLuck") ? 1.75 : 1;
+  const frenzyMult = skillOwned("frenzyMaster") ? 1.5 : 1;
   const roll = Math.random();
   if (roll < .45) {
-    const amount = Math.max(250, perSecond() * 90 + perClick() * 50);
+    const amount = Math.max(250, perSecond() * 90 + perClick() * 50) * luckMult;
     earn(amount);
     toast("Loot: +" + fmt(amount) + " Zayens");
   } else if (roll < .75) {
-    state.powerupUntil = Date.now() + 15000;
-    toast("Loot: 15s x3 frenzy");
+    const duration = 15000 * frenzyMult;
+    state.powerupUntil = Date.now() + duration;
+    toast("Loot: " + Math.round(duration/1000) + "s x3 frenzy");
   } else {
-    state.gems += 8;
-    toast("Loot: +8 gems");
+    const gemReward = Math.floor(8 * luckMult);
+    state.gems += gemReward;
+    toast("Loot: +" + gemReward + " gems");
   }
   render();
 }
@@ -532,7 +599,8 @@ function openLootBox() {
 function activatePowerup() {
   if (state.gems < 10) return alert("Need 10 gems.");
   state.gems -= 10;
-  state.powerupUntil = Date.now() + 30000;
+  const frenzyMult = skillOwned("frenzyMaster") ? 1.5 : 1;
+  state.powerupUntil = Date.now() + 30000 * frenzyMult;
   render();
 }
 
@@ -597,6 +665,14 @@ function render() {
   document.getElementById("skillList").innerHTML = skills.map(s=>{
     const owned = state.skills[s.id];
     return `<div class="skill"><div class="row"><div><h3>${s.name}</h3><div class="small">${s.desc}</div></div><button ${owned||state.gems<s.cost?"disabled":""} onclick="buySkill('${s.id}')">${owned?"Owned":s.cost+" gems"}</button></div></div>`;
+  }).join("");
+
+  document.getElementById("starShopList").innerHTML = starUpgrades.map(s=>{
+    const lvl = starUpgradeLevel(s.id);
+    const maxed = lvl >= s.max;
+    const cost = starUpgradeCost(s);
+    const label = maxed ? "MAX" : cost + " ⭐";
+    return `<div class="skill"><div class="row"><div><h3>${s.name}</h3><div class="small">${s.desc}<br>Level: ${lvl}/${s.max}</div></div><button ${maxed||state.stars<cost?"disabled":""} onclick="buyStarUpgrade('${s.id}')">${label}</button></div></div>`;
   }).join("");
 
   document.getElementById("achievementList").innerHTML = achievements.map(a=>{
@@ -696,6 +772,20 @@ render();
 
 setInterval(()=>{
   earn(perSecond());
+  if (skillOwned("autoTap")) {
+    earn(perClick());
+    state.totalClicks++;
+    if (skillOwned("comboMaster") && state.totalClicks % 25 === 0) state.gems += 1;
+  }
+  state.gemRainTimer = (state.gemRainTimer || 0) + 1;
+  if (state.gemRainTimer >= 60) {
+    state.gemRainTimer = 0;
+    const r = starUpgradeLevel("gemRain");
+    if (r > 0) {
+      state.gems += r;
+      toast("Gem Rain: +" + r + " gems");
+    }
+  }
   checkAchievements();
   render();
 }, 1000);
