@@ -177,10 +177,13 @@ button:disabled {
     <strong>Zayen Clicker</strong>
     <span class="small">Level <span id="level">1</span> • Area: <span id="areaName">Classroom</span></span>
   </div>
-  <div>
-    <button onclick="claimDaily()">Daily Reward</button>
-    <button onclick="saveGame(true)">Save</button> <span id="autosaveText" class="small">Autosaving...</span>
-    <button onclick="hardReset()">Reset</button>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+    <div style="display:flex;gap:8px">
+      <button onclick="claimDaily()">Daily Reward</button>
+      <button onclick="saveGame(true)">Save</button>
+      <button onclick="hardReset()">Reset</button>
+    </div>
+    <span id="autosaveText" class="small">Autosaving...</span>
   </div>
 </header>
 
