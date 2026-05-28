@@ -908,6 +908,7 @@ function toast(msg) {
 }
 
 function saveGame(manual=false) {
+  if (_resetting) return;
   state.lastSave = Date.now();
   const data = JSON.stringify(state);
   localStorage.setItem(SAVE_KEY, JSON.stringify({d: btoa(unescape(encodeURIComponent(data))), h: _hash(data + _SALT)}));
@@ -945,8 +946,10 @@ function loadGame() {
   }
 }
 
+let _resetting = false;
 function hardReset() {
   if (!confirm("Delete all saved progress?")) return;
+  _resetting = true;
   localStorage.removeItem(SAVE_KEY);
   location.reload();
 }
