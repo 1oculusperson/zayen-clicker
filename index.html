@@ -271,10 +271,27 @@ button:disabled {
   <div id="rewards" class="panel">
     <h2>Loot Box</h2>
     <p class="small">Costs 5 gems. Gives random Zayens, a multiplier burst, or bonus gems.</p>
-    <button onclick="openLootBox()">Open Loot Box</button>
-    <h2>Temporary Power-Up</h2>
+    <button onclick="openLootBox()">Open Loot Box (5 💎)</button>
+
+    <h2>Star Loot Box</h2>
+    <p class="small">Costs 2 ⭐. Massive rewards — big Zayen dump, extended frenzy, or gem shower.</p>
+    <button onclick="openStarLootBox()">Open Star Loot Box (2 ⭐)</button>
+
+    <h2>Power-Ups</h2>
     <p id="powerupText" class="small">No active power-up.</p>
-    <button onclick="activatePowerup()">Activate 30s Frenzy (10 gems)</button>
+    <button onclick="activatePowerup()">30s Frenzy x3 (10 💎)</button>
+    <button style="margin-top:8px" onclick="activateMegaFrenzy()">3min Mega Frenzy x5 (30 💎)</button>
+
+    <h2>Exchange</h2>
+    <p class="small">Convert between currencies.</p>
+    <button onclick="exchangeGemsForStar()">30 💎 → 1 ⭐</button>
+    <button style="margin-top:8px" onclick="exchangeStarForGems()">1 ⭐ → 25 💎</button>
+
+    <h2>Lucky Spin</h2>
+    <p class="small">Costs 3 gems. Spin for a mystery reward — could be great or just okay.</p>
+    <button onclick="luckySpin()">Spin (3 💎)</button>
+    <p id="spinResult" class="small"></p>
+
     <h2>Streak</h2>
     <p>Daily streak: <b id="streak">0</b> days</p>
   </div>
@@ -306,6 +323,7 @@ let state = {
   areas:{classroom:true},
   currentArea:"classroom",
   powerupUntil:0,
+  megaFrenzy:false,
   gemRainTimer:0
 };
 
@@ -353,21 +371,50 @@ const areas = [
   {id:"classroom", name:"Classroom", need:0, mult:1},
   {id:"cafeteria", name:"Cafeteria", need:5000, mult:1.25},
   {id:"gym", name:"Gym", need:50000, mult:1.6},
-  {id:"zayenverse", name:"Zayenverse", need:500000, mult:2.2}
+  {id:"zayenverse", name:"Zayenverse", need:500000, mult:2.2},
+  {id:"library", name:"Secret Library", need:5000000, mult:3.2},
+  {id:"rooftop", name:"Rooftop Arena", need:50000000, mult:4.5},
+  {id:"lair", name:"Underground Lair", need:500000000, mult:6.5},
+  {id:"station", name:"Space Station", need:5000000000, mult:9.0},
+  {id:"planet", name:"Zayen Planet", need:50000000000, mult:13.0},
+  {id:"void", name:"The Void", need:1000000000000, mult:20.0}
 ];
 
 const achievements = [
-  {id:"click10", name:"First 10 Clicks", check:()=>state.totalClicks>=10, reward:2},
-  {id:"z100", name:"100 Zayens", check:()=>state.lifetime>=100, reward:2},
-  {id:"z10k", name:"10,000 Zayens", check:()=>state.lifetime>=10000, reward:8},
-  {id:"auto10", name:"Automation Army", check:()=>countGenerators()>=10, reward:6},
-  {id:"level10", name:"Level 10", check:()=>state.level>=10, reward:10}
+  {id:"click10",   name:"First 10 Clicks",      check:()=>state.totalClicks>=10,           reward:2},
+  {id:"click1k",   name:"1,000 Clicks",          check:()=>state.totalClicks>=1000,         reward:5},
+  {id:"click100k", name:"100,000 Clicks",        check:()=>state.totalClicks>=100000,       reward:15},
+  {id:"z100",      name:"100 Zayens",            check:()=>state.lifetime>=100,             reward:2},
+  {id:"z10k",      name:"10,000 Zayens",         check:()=>state.lifetime>=10000,           reward:8},
+  {id:"z1m",       name:"1 Million Zayens",      check:()=>state.lifetime>=1000000,         reward:15},
+  {id:"z1b",       name:"1 Billion Zayens",      check:()=>state.lifetime>=1000000000,      reward:30},
+  {id:"z1t",       name:"1 Trillion Zayens",     check:()=>state.lifetime>=1000000000000,   reward:50},
+  {id:"auto10",    name:"Automation Army",       check:()=>countGenerators()>=10,           reward:6},
+  {id:"auto50",    name:"Zayen Empire",          check:()=>countGenerators()>=50,           reward:18},
+  {id:"allGen",    name:"Full Arsenal",          check:()=>generators.every(g=>(state.generators[g.id]||0)>0), reward:12},
+  {id:"level10",   name:"Level 10",             check:()=>state.level>=10,                 reward:10},
+  {id:"level25",   name:"Level 25",             check:()=>state.level>=25,                 reward:20},
+  {id:"level50",   name:"Level 50",             check:()=>state.level>=50,                 reward:40},
+  {id:"prestige1", name:"First Prestige",       check:()=>state.stars>=1,                  reward:15},
+  {id:"prestige5", name:"Star Collector",       check:()=>state.stars>=5,                  reward:25},
+  {id:"streak7",   name:"7-Day Streak",         check:()=>state.streak>=7,                 reward:20},
+  {id:"allAreas",  name:"World Traveler",       check:()=>areas.every(a=>!!state.areas[a.id]), reward:30},
+  {id:"skillFull", name:"Master of Skills",     check:()=>skills.every(s=>!!state.skills[s.id]), reward:40}
 ];
 
 const quests = [
-  {id:"qclicks", name:"Click 100 times", progress:()=>state.totalClicks, need:100, reward:5},
-  {id:"qearn", name:"Earn 5,000 lifetime Zayens", progress:()=>state.lifetime, need:5000, reward:8},
-  {id:"qauto", name:"Own 5 generators", progress:()=>countGenerators(), need:5, reward:5}
+  {id:"qclicks",   name:"Click 100 times",              progress:()=>state.totalClicks, need:100,        reward:5},
+  {id:"qclicks5c", name:"Click 500 times",              progress:()=>state.totalClicks, need:500,        reward:10},
+  {id:"qclicks5k", name:"Click 5,000 times",            progress:()=>state.totalClicks, need:5000,       reward:20},
+  {id:"qearn",     name:"Earn 5,000 lifetime Zayens",   progress:()=>state.lifetime,    need:5000,       reward:8},
+  {id:"qearn1m",   name:"Earn 1M lifetime Zayens",      progress:()=>state.lifetime,    need:1000000,    reward:15},
+  {id:"qearn1b",   name:"Earn 1B lifetime Zayens",      progress:()=>state.lifetime,    need:1000000000, reward:30},
+  {id:"qauto",     name:"Own 5 generators",             progress:()=>countGenerators(), need:5,          reward:5},
+  {id:"qauto20",   name:"Own 20 generators",            progress:()=>countGenerators(), need:20,         reward:12},
+  {id:"qlevel5",   name:"Reach level 5",                progress:()=>state.level,       need:5,          reward:8},
+  {id:"qlevel15",  name:"Reach level 15",               progress:()=>state.level,       need:15,         reward:18},
+  {id:"qprestige", name:"Prestige at least once",       progress:()=>state.stars,       need:1,          reward:20},
+  {id:"qstreak3",  name:"Maintain a 3-day streak",      progress:()=>state.streak,      need:3,          reward:10}
 ];
 
 function fmt(n) {
@@ -393,7 +440,10 @@ function idleSkillMult() { return skillOwned("idleMastery") ? 1.2 : 1; }
 function xpSkillMult() { return (skillOwned("xpBoost") ? 1.3 : 1) * nebulaWisdomMult(); }
 function starMult() { return 1 + state.stars * (skillOwned("starlight") ? 0.12 : 0.08); }
 function areaMult() { return areas.find(a=>a.id===state.currentArea).mult; }
-function powerupMult() { return Date.now() < state.powerupUntil ? 3 : 1; }
+function powerupMult() {
+  if (Date.now() >= state.powerupUntil) return 1;
+  return state.megaFrenzy ? 5 : 3;
+}
 
 function totalMultiplier() {
   return state.multiplier * starMult() * areaMult() * powerupMult() * stellarPowerMult();
@@ -549,7 +599,7 @@ function prestige() {
     zayens:startZayens,lifetime:startZayens,totalClicks:0,clickPower:1,multiplier:1,gems:keep.gems,stars:keep.stars,
     level:1,xp:0,streak:keep.streak,lastDaily:keep.lastDaily,lastSave:Date.now(),
     upgrades:{},generators:{},skills:keep.skills,starUpgrades:keep.starUpgrades,achievements:keep.achievements,
-    areas:{classroom:true},currentArea:"classroom",powerupUntil:0,gemRainTimer:0
+    areas:{classroom:true},currentArea:"classroom",powerupUntil:0,megaFrenzy:false,gemRainTimer:0
   };
   saveGame(true);
   render();
@@ -604,6 +654,82 @@ function activatePowerup() {
   render();
 }
 
+function activateMegaFrenzy() {
+  if (state.gems < 30) return alert("Need 30 gems.");
+  state.gems -= 30;
+  const frenzyMult = skillOwned("frenzyMaster") ? 1.5 : 1;
+  state.powerupUntil = Date.now() + 180000 * frenzyMult;
+  state.megaFrenzy = true;
+  render();
+}
+
+function openStarLootBox() {
+  if (state.stars < 2) return alert("Need 2 Prestige Stars.");
+  state.stars -= 2;
+  const roll = Math.random();
+  if (roll < 0.4) {
+    const amount = Math.max(10000, perSecond() * 600 + perClick() * 300);
+    earn(amount);
+    toast("Star Loot: +" + fmt(amount) + " Zayens!");
+  } else if (roll < 0.7) {
+    const frenzyMult = skillOwned("frenzyMaster") ? 1.5 : 1;
+    state.powerupUntil = Date.now() + 120000 * frenzyMult;
+    toast("Star Loot: 2min x3 frenzy!");
+  } else {
+    const gemReward = 20 + Math.floor(Math.random() * 20);
+    state.gems += gemReward;
+    toast("Star Loot: +" + gemReward + " gems!");
+  }
+  render();
+}
+
+function exchangeGemsForStar() {
+  if (state.gems < 30) return alert("Need 30 gems.");
+  state.gems -= 30;
+  state.stars += 1;
+  toast("Exchanged 30 gems for 1 Prestige Star!");
+  render();
+}
+
+function exchangeStarForGems() {
+  if (state.stars < 1) return alert("Need 1 Prestige Star.");
+  state.stars -= 1;
+  state.gems += 25;
+  toast("Exchanged 1 star for 25 gems!");
+  render();
+}
+
+function luckySpin() {
+  if (state.gems < 3) return alert("Need 3 gems.");
+  state.gems -= 3;
+  const roll = Math.random();
+  let result = "";
+  if (roll < 0.05) {
+    state.stars += 1;
+    result = "JACKPOT! +1 Prestige Star! ⭐";
+  } else if (roll < 0.15) {
+    state.gems += 15;
+    result = "Lucky! +15 gems 💎";
+  } else if (roll < 0.35) {
+    const amount = Math.max(500, perSecond() * 120);
+    earn(amount);
+    result = "Nice! +" + fmt(amount) + " Zayens";
+  } else if (roll < 0.55) {
+    state.gems += 5;
+    result = "+5 gems 💎";
+  } else if (roll < 0.75) {
+    const amount = Math.max(100, perClick() * 20);
+    earn(amount);
+    result = "+" + fmt(amount) + " Zayens";
+  } else {
+    state.gems += 1;
+    result = "Just +1 gem... better luck next time.";
+  }
+  document.getElementById("spinResult").innerText = "Result: " + result;
+  toast("Spin: " + result);
+  render();
+}
+
 function checkAchievements() {
   achievements.forEach(a=>{
     if (!state.achievements[a.id] && a.check()) {
@@ -649,8 +775,11 @@ function render() {
   document.getElementById("milestoneText").innerText = "Reach " + fmt(milestone) + " lifetime Zayens";
   document.getElementById("milestoneFill").style.width = Math.min(100, state.lifetime / milestone * 100) + "%";
 
+  if (Date.now() >= state.powerupUntil) state.megaFrenzy = false;
   document.getElementById("powerupText").innerText =
-    Date.now() < state.powerupUntil ? "x3 Frenzy active: " + Math.ceil((state.powerupUntil-Date.now())/1000) + "s left" : "No active power-up.";
+    Date.now() < state.powerupUntil
+      ? (state.megaFrenzy ? "x5 MEGA Frenzy" : "x3 Frenzy") + " active: " + Math.ceil((state.powerupUntil-Date.now())/1000) + "s left"
+      : "No active power-up.";
 
   document.getElementById("upgradeList").innerHTML = upgrades.map(u=>{
     const cost = upgradeCost(u);
