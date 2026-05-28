@@ -394,7 +394,11 @@ const upgrades = [
   {id:"hyper",    name:"Hyper Tap",      desc:"+25 base per click",    base:2500,      scale:1.28, effect:()=>state.clickPower += 25},
   {id:"quantum",  name:"Quantum Fist",   desc:"+100 base per click",   base:75000,     scale:1.30, effect:()=>state.clickPower += 100},
   {id:"reality",  name:"Reality Shatter",desc:"+500 base per click",   base:2500000,   scale:1.32, effect:()=>state.clickPower += 500},
-  {id:"void",     name:"Void Strike",    desc:"+2500 base per click",  base:500000000, scale:1.35, effect:()=>state.clickPower += 2500}
+  {id:"void",     name:"Void Strike",    desc:"+2500 base per click",  base:500000000,      scale:1.35, effect:()=>state.clickPower += 2500},
+  {id:"astral",   name:"Astral Fist",   desc:"+10K base per click",   base:20000000000,    scale:1.38, effect:()=>state.clickPower += 10000},
+  {id:"cosmic",   name:"Cosmic Surge",  desc:"+50% production",       base:5000000000000,  scale:1.40, effect:()=>state.multiplier *= 1.5},
+  {id:"omni",     name:"Omni Pulse",    desc:"+50K base per click",   base:1e15,           scale:1.42, effect:()=>state.clickPower += 50000},
+  {id:"eternal",  name:"Eternal Will",  desc:"+200K base per click",  base:5e17,           scale:1.45, effect:()=>state.clickPower += 200000}
 ];
 
 const generators = [
@@ -404,7 +408,10 @@ const generators = [
   {id:"portal",      name:"Zayen Portal",       desc:"+500 base/sec",      base:90000,       scale:1.13, cps:500},
   {id:"dim",         name:"Zayen Dimension",    desc:"+5K base/sec",       base:2000000,     scale:1.13, cps:5000},
   {id:"nexus",       name:"Zayen Nexus",        desc:"+80K base/sec",      base:50000000,    scale:1.13, cps:80000},
-  {id:"singularity", name:"Zayen Singularity",  desc:"+3M base/sec",       base:2000000000,  scale:1.13, cps:3000000}
+  {id:"singularity", name:"Zayen Singularity",  desc:"+3M base/sec",       base:2000000000,     scale:1.13, cps:3000000},
+  {id:"galaxy",      name:"Zayen Galaxy",       desc:"+50M base/sec",      base:100000000000,   scale:1.13, cps:50000000},
+  {id:"universe",    name:"Zayen Universe",     desc:"+1B base/sec",       base:5000000000000,  scale:1.13, cps:1000000000},
+  {id:"multiverse",  name:"Zayen Multiverse",   desc:"+20B base/sec",      base:2e14,           scale:1.13, cps:20000000000}
 ];
 
 const skills = [
@@ -425,7 +432,13 @@ const skills = [
   {id:"starSynergy", name:"Star Synergy", desc:"+0.5% total production per Prestige Star", cost:35},
   {id:"xpRush", name:"XP Rush", desc:"+50% XP gain", cost:18},
   {id:"gemEfficiency", name:"Gem Efficiency", desc:"All gem costs reduced by 20%", cost:15},
-  {id:"voidTouch", name:"Void Touch", desc:"+20% total production", cost:50}
+  {id:"voidTouch",     name:"Void Touch",     desc:"+20% total production",                      cost:50},
+  {id:"genSynergy",   name:"Gen Synergy",    desc:"Each gen type owned boosts all production +5%", cost:30},
+  {id:"speedDiscount",name:"Speed Freak",    desc:"Speed upgrades cost 25% less",                  cost:22},
+  {id:"clickFrenzy",  name:"Click Frenzy",   desc:"Every 100 clicks grants 5 gems",                cost:25},
+  {id:"offlineBoost", name:"Lazy Genius",    desc:"Offline earnings cap extended to 24 hours",     cost:20},
+  {id:"transcendence",name:"Transcendence",  desc:"+50% total production",                          cost:60},
+  {id:"gemStorm",     name:"Gem Storm",      desc:"3% chance per click to gain 3 gems",            cost:40}
 ];
 
 const starUpgrades = [
@@ -436,7 +449,11 @@ const starUpgrades = [
   {id:"nebulaWisdom", name:"Nebula Wisdom", desc:"+25% XP gain per level", base:2, max:10},
   {id:"blackHole", name:"Black Hole", desc:"-3% all costs per level (compounding)", base:2, max:15},
   {id:"supernova", name:"Supernova Start", desc:"Start each prestige with more Zayens", base:4, max:10},
-  {id:"gemRain", name:"Gem Rain", desc:"+1 gem per minute per level", base:5, max:10}
+  {id:"gemRain",       name:"Gem Rain",       desc:"+1 gem per minute per level",              base:5, max:10},
+  {id:"voidAscension",name:"Void Ascension", desc:"+20% prestige star gain per level",         base:5, max:5},
+  {id:"temporalShift",name:"Temporal Shift", desc:"+5% generator production per level",        base:4, max:8},
+  {id:"infiniteClick",name:"Infinite Click", desc:"+10% click power per level",                base:3, max:10},
+  {id:"darkMatter",   name:"Dark Matter",    desc:"+25% offline earnings per level",           base:3, max:6}
 ];
 
 const areas = [
@@ -449,7 +466,11 @@ const areas = [
   {id:"lair", name:"Underground Lair", need:500000000, mult:6.5},
   {id:"station", name:"Space Station", need:5000000000, mult:9.0},
   {id:"planet", name:"Zayen Planet", need:50000000000, mult:13.0},
-  {id:"void", name:"The Void", need:1000000000000, mult:20.0}
+  {id:"void",    name:"The Void",         need:1000000000000, mult:20.0},
+  {id:"nebula",  name:"Zayen Nebula",     need:1e15,          mult:32.0},
+  {id:"cosmos",  name:"The Cosmos",       need:1e18,          mult:50.0},
+  {id:"beyond",  name:"Beyond Reality",   need:1e21,          mult:75.0},
+  {id:"eternal", name:"Eternal Plane",    need:1e25,          mult:120.0}
 ];
 
 const achievements = [
@@ -476,9 +497,20 @@ const achievements = [
   {id:"auto100",    name:"Legion",               check:()=>countGenerators()>=100,            reward:25},
   {id:"level75",    name:"Level 75",             check:()=>state.level>=75,                   reward:60},
   {id:"level100",   name:"Level 100",            check:()=>state.level>=100,                  reward:100},
-  {id:"z1qa",       name:"1 Quadrillion Zayens", check:()=>state.lifetime>=1e15,              reward:75},
-  {id:"z1qi",       name:"1 Quintillion Zayens", check:()=>state.lifetime>=1e18,              reward:120},
-  {id:"allLategen", name:"Full Armory",          check:()=>generators.every(g=>(state.generators[g.id]||0)>0), reward:20}
+  {id:"z1qa",       name:"1 Quadrillion Zayens",  check:()=>state.lifetime>=1e15,              reward:75},
+  {id:"z1qi",       name:"1 Quintillion Zayens",  check:()=>state.lifetime>=1e18,              reward:120},
+  {id:"z1sx",       name:"1 Sextillion Zayens",   check:()=>state.lifetime>=1e21,              reward:150},
+  {id:"z1sp",       name:"1 Septillion Zayens",   check:()=>state.lifetime>=1e24,              reward:200},
+  {id:"z1oc",       name:"1 Octillion Zayens",    check:()=>state.lifetime>=1e27,              reward:250},
+  {id:"z1no",       name:"1 Nonillion Zayens",    check:()=>state.lifetime>=1e30,              reward:300},
+  {id:"prestige10", name:"Star Veteran",          check:()=>state.stars>=10,                   reward:30},
+  {id:"prestige50", name:"Star Master",           check:()=>state.stars>=50,                   reward:80},
+  {id:"prestige100",name:"Star God",              check:()=>state.stars>=100,                  reward:150},
+  {id:"auto200",    name:"Infinite Army",         check:()=>countGenerators()>=200,            reward:40},
+  {id:"auto500",    name:"Zayen Armada",          check:()=>countGenerators()>=500,            reward:75},
+  {id:"level150",   name:"Level 150",             check:()=>state.level>=150,                  reward:150},
+  {id:"level200",   name:"Level 200",             check:()=>state.level>=200,                  reward:250},
+  {id:"allLategen", name:"Full Armory",           check:()=>generators.every(g=>(state.generators[g.id]||0)>0), reward:20}
 ];
 
 const quests = [
@@ -499,14 +531,27 @@ const quests = [
   {id:"qclicks50k", name:"Click 50,000 times",            progress:()=>state.totalClicks, need:50000,       reward:30},
   {id:"qauto50",    name:"Own 50 generators",             progress:()=>countGenerators(), need:50,          reward:20},
   {id:"qlevel30",   name:"Reach level 30",                progress:()=>state.level,       need:30,          reward:25},
-  {id:"qallgen2",   name:"Own every generator type",      progress:()=>generators.filter(g=>(state.generators[g.id]||0)>0).length, need:generators.length, reward:35}
+  {id:"qallgen2",    name:"Own every generator type",       progress:()=>generators.filter(g=>(state.generators[g.id]||0)>0).length, need:generators.length, reward:35},
+  {id:"qearn1qi",   name:"Earn 1Qi lifetime Zayens",       progress:()=>state.lifetime,    need:1e18,        reward:90},
+  {id:"qearn1sx",   name:"Earn 1Sx lifetime Zayens",       progress:()=>state.lifetime,    need:1e21,        reward:120},
+  {id:"qearn1sp",   name:"Earn 1Sp lifetime Zayens",       progress:()=>state.lifetime,    need:1e24,        reward:160},
+  {id:"qauto100",   name:"Own 100 generators",             progress:()=>countGenerators(), need:100,         reward:30},
+  {id:"qauto200",   name:"Own 200 generators",             progress:()=>countGenerators(), need:200,         reward:50},
+  {id:"qlevel50",   name:"Reach level 50",                 progress:()=>state.level,       need:50,          reward:35},
+  {id:"qlevel75",   name:"Reach level 75",                 progress:()=>state.level,       need:75,          reward:50},
+  {id:"qlevel100",  name:"Reach level 100",                progress:()=>state.level,       need:100,         reward:75},
+  {id:"qprestige5", name:"Collect 5 Prestige Stars",       progress:()=>state.stars,       need:5,           reward:30},
+  {id:"qprestige25",name:"Collect 25 Prestige Stars",      progress:()=>state.stars,       need:25,          reward:60},
+  {id:"qclicks250k",name:"Click 250,000 times",            progress:()=>state.totalClicks, need:250000,      reward:50},
+  {id:"qallarea",   name:"Unlock all areas",               progress:()=>areas.filter(a=>!!state.areas[a.id]).length, need:areas.length, reward:60}
 ];
 
 function fmt(n) {
   if (n < 1000) return Math.floor(n).toString();
-  const units = ["K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"];
+  const units = ["K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc","Ud","Dd","Td","Qad","Qid","Sxd","Spd","Ocd","Nod","Vg","UVg","DVg","TVg","QaVg","QiVg","SxVg","SpVg","OcVg","NoVg","Tg"];
   let u = -1;
   while (n >= 1000 && u < units.length - 1) { n /= 1000; u++; }
+  if (u >= units.length - 1) return n.toExponential(2);
   return n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2) + units[u];
 }
 
@@ -540,22 +585,31 @@ function deepRootsMult() {
   return 1 + generators.filter(g=>(state.generators[g.id]||0)>0).length * 0.15;
 }
 function starSynergyMult() { return 1 + (skillOwned("starSynergy") ? state.stars * 0.005 : 0); }
+function genSynergyMult() {
+  if (!skillOwned("genSynergy")) return 1;
+  return Math.pow(1.05, generators.filter(g=>(state.generators[g.id]||0)>0).length);
+}
+function temporalShiftMult() { return 1 + starUpgradeLevel("temporalShift") * 0.05; }
+function infiniteClickMult() { return 1 + starUpgradeLevel("infiniteClick") * 0.10; }
+function offlineMult() { return 1 + starUpgradeLevel("darkMatter") * 0.25; }
 
 function totalMultiplier() {
   return state.multiplier * starMult() * areaMult() * powerupMult() * stellarPowerMult()
     * (skillOwned("voidTouch") ? 1.2 : 1)
-    * (skillOwned("areaMastery") ? 1.25 : 1);
+    * (skillOwned("areaMastery") ? 1.25 : 1)
+    * (skillOwned("transcendence") ? 1.5 : 1);
 }
 
 function perClick() {
-  return state.clickPower * totalMultiplier() * clickSkillMult() * cosmicClickMult() * deepRootsMult();
+  return state.clickPower * totalMultiplier() * clickSkillMult() * cosmicClickMult() * deepRootsMult() * infiniteClickMult();
 }
 
-const speedTiers = [1, 2, 3, 5, 8, 12];
+const speedTiers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 function genSpeedMult(id) { return speedTiers[state.genSpeed[id] || 0]; }
 function genSpeedCost(g) {
   const lvl = state.genSpeed[g.id] || 0;
-  return Math.floor(g.base * 10 * Math.pow(5, lvl));
+  const disc = skillOwned("speedDiscount") ? 0.75 : 1;
+  return Math.floor(g.base * 10 * Math.pow(4, lvl) * disc);
 }
 function buyGenSpeed(id) {
   const g = generators.find(x=>x.id===id);
@@ -571,7 +625,8 @@ function buyGenSpeed(id) {
 
 function baseCps() {
   const genMult = skillOwned("genMastery") ? 1.3 : 1;
-  return generators.reduce((sum,g)=>sum + (state.generators[g.id]||0) * g.cps * genSpeedMult(g.id), 0) * genMult;
+  return generators.reduce((sum,g)=>sum + (state.generators[g.id]||0) * g.cps * genSpeedMult(g.id), 0)
+    * genMult * genSynergyMult() * temporalShiftMult();
 }
 
 function perSecond() {
@@ -622,6 +677,14 @@ function clickZayen(e) {
   if (skillOwned("lootLuck") && Math.random() < 0.01) {
     state.gems += 1;
     floatingText("💎+1", e.clientX, e.clientY - 30);
+  }
+  if (skillOwned("clickFrenzy") && state.totalClicks % 100 === 0) {
+    state.gems += 5;
+    toast("Click Frenzy! +5 gems");
+  }
+  if (skillOwned("gemStorm") && Math.random() < 0.03) {
+    state.gems += 3;
+    floatingText("💎💎💎", e.clientX, e.clientY - 50);
   }
 
   const img = document.getElementById("zayen");
@@ -733,7 +796,7 @@ function setArea(id) {
 }
 
 function prestigeGain() {
-  return Math.floor(Math.pow(state.lifetime / 1e10, 1/3));
+  return Math.floor(Math.pow(state.lifetime / 1e10, 1/3) * Math.pow(1.2, starUpgradeLevel("voidAscension")));
 }
 
 function prestige() {
@@ -751,7 +814,7 @@ function prestige() {
     lastDaily:state.lastDaily
   };
   const supernovaLvl = state.starUpgrades.supernova || 0;
-  const startZayens = supernovaLvl > 0 ? 100 * Math.pow(8, supernovaLvl - 1) : 0;
+  const startZayens = supernovaLvl > 0 ? 1000 * Math.pow(2, supernovaLvl) : 0;
   state = {
     zayens:startZayens,lifetime:startZayens,totalClicks:0,clickPower:1,multiplier:1,gems:keep.gems,stars:keep.stars,
     level:1,xp:0,streak:keep.streak,lastDaily:keep.lastDaily,lastSave:Date.now(),
@@ -883,7 +946,10 @@ const _cursedGenNames = {
   portal:      ["","","the hungry door",               "DO NOT LOOK INSIDE",   "it opens both ways"],
   dim:         ["","","the space between spaces",       "THE FRACTURE",         "void pocket"],
   nexus:       ["","","the convergence point",          "ALL PATHS LEAD HERE",  "you cannot avoid it"],
-  singularity: ["","","the point of no return",         "INFINITE DENSITY",     "beyond this, nothing"]
+  singularity: ["","","the point of no return",         "INFINITE DENSITY",     "beyond this, nothing"],
+  galaxy:      ["","","the hungry star",               "CONSUMING GALAXY",     "it eats light"],
+  universe:    ["","","the wrong sky",                 "EVERYTHING IS WRONG",  "outside all things"],
+  multiverse:  ["","","all that exists",               "INFINITE HORROR",      "you have broken it"]
 };
 
 const _cursedLabels = [
@@ -945,7 +1011,7 @@ function tickCorruption() {
 
 
 function nextMilestone() {
-  const milestones = [100,1000,10000,100000,1e6,1e7,1e9,1e12,1e15,1e18,1e21];
+  const milestones = [100,1000,10000,100000,1e6,1e7,1e9,1e12,1e15,1e18,1e21,1e24,1e27,1e30,1e33];
   return milestones.find(m=>state.lifetime < m) || milestones[milestones.length-1];
 }
 
@@ -1002,10 +1068,10 @@ function render() {
   }).join("");
 
   const _skillCats = [
-    {label:"Clicking",   ids:["tapMastery","critStrike","autoTap","comboMaster","deepRoots"]},
-    {label:"Production", ids:["idleMastery","genMastery","voidTouch","areaMastery","starSynergy"]},
-    {label:"Economy",    ids:["discounts","gemEfficiency","dailyBlessing","lootLuck"]},
-    {label:"Growth",     ids:["xpBoost","xpRush","frenzyMaster","starlight"]}
+    {label:"Clicking",   ids:["tapMastery","critStrike","autoTap","comboMaster","deepRoots","clickFrenzy","gemStorm"]},
+    {label:"Production", ids:["idleMastery","genMastery","voidTouch","areaMastery","starSynergy","genSynergy","transcendence"]},
+    {label:"Economy",    ids:["discounts","gemEfficiency","dailyBlessing","lootLuck","speedDiscount"]},
+    {label:"Growth",     ids:["xpBoost","xpRush","frenzyMaster","starlight","offlineBoost"]}
   ];
   document.getElementById("skillList").innerHTML = _skillCats.map(cat=>{
     const catSkills = cat.ids.map(id=>skills.find(s=>s.id===id)).filter(Boolean);
@@ -1104,8 +1170,9 @@ function loadGame() {
       saved = wrapper;
     }
     state = {...state, ...saved};
-    const elapsed = Math.min(28800000, Date.now() - (state.lastSave || Date.now()));
-    const offline = perSecond() * elapsed / 1000;
+    const offlineCap = skillOwned("offlineBoost") ? 86400000 : 28800000;
+    const elapsed = Math.min(offlineCap, Date.now() - (state.lastSave || Date.now()));
+    const offline = perSecond() * elapsed / 1000 * offlineMult();
     if (offline > 1) {
       earn(offline);
       setTimeout(()=>alert("Offline earnings: " + fmt(offline) + " Zayens"), 300);
