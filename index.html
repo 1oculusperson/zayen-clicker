@@ -222,7 +222,7 @@ button:disabled {
   0%,100%{box-shadow:inset 0 0 0px transparent}
   50%{box-shadow:inset 0 0 120px rgba(180,0,0,.35)}
 }
-/* ── Area themes (corruption rules below will override these) ─────────── */
+/* ── Area themes ──────────────────────────────────────────────────────── */
 body.area-cafeteria  {--bg1:#1c1408;--bg2:#3d2a12;--gold:#ffcc44;--green:#aaee66;--blue:#ffaa44}
 body.area-gym        {--bg1:#1a0a08;--bg2:#3a1812;--gold:#ff7744;--green:#ffcc44;--blue:#ff6688}
 body.area-zayenverse {--bg1:#0e0820;--bg2:#2a1260;--gold:#cc88ff;--green:#88ffcc;--blue:#ff88dd;--card:rgba(180,100,255,.10)}
@@ -237,18 +237,6 @@ body.area-cosmos     {--bg1:#020208;--bg2:#050520;--gold:#ccccff;--green:#aaaaff
 body.area-beyond     {--bg1:#020205;--bg2:#05050a;--gold:#ddddff;--green:#aaaacc;--blue:#8888aa;--card:rgba(255,255,255,.06)}
 body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa;--blue:#cccccc;--card:rgba(255,255,255,.05)}
 /* ─────────────────────────────────────────────────────────────────────── */
-body.corrupt-1{--bg2:#3d2060}
-body.corrupt-2{--bg2:#4a1535;--bg1:#1a0810}
-body.corrupt-3{--bg2:#5a0a10;--bg1:#150505;--gold:#ff5555}
-body.corrupt-4{--bg2:#6a0000;--bg1:#0a0000;--gold:#ff1111;--green:#ff2244;--blue:#cc00ff;--pink:#ff0066}
-body.corrupt-5{--bg2:#200000;--bg1:#050000;--gold:#cc0000;--green:#880000;--blue:#550000;--pink:#330000;--card:rgba(200,0,0,.08);--card2:rgba(200,0,0,.15)}
-body.corrupt-3 .big-number{animation:glitch 6s infinite}
-body.corrupt-4 .big-number{animation:glitch 3s infinite}
-body.corrupt-5 .big-number{animation:glitch 1.2s infinite}
-body.corrupt-4 #zayen{animation:vignette-pulse 4s infinite}
-body.corrupt-5 #zayen{animation:vignette-pulse 2s infinite}
-body.corrupt-5 .card{animation:flicker 15s infinite}
-body.corrupt-4 header,body.corrupt-5 header{border-bottom:1px solid rgba(255,0,0,.3)}
 /* ── Secret cheat panel ─────────────────────────────────────── */
 #secretZone {
   position:absolute;
@@ -1171,113 +1159,6 @@ function collectQuest(id) {
   }
 }
 
-// ── Corruption System ──────────────────────────────────────────
-const _shownCorruption = new Set();
-
-const _corruptionThresholds = [0, 1e15, 1e16, 1e17, 1e18, 1e19];
-
-function corruptionLevel() {
-  const lt = state.lifetime;
-  for (let i = _corruptionThresholds.length - 1; i >= 0; i--)
-    if (lt >= _corruptionThresholds[i]) return i;
-  return 0;
-}
-
-const _corruptMilestoneMsg = {
-  1: "something feels... different.",
-  2: "the zayens multiply in the dark.",
-  3: "you cannot stop now. it is too late.",
-  4: "Z A Y E N   I S   C O M I N G",
-  5: "you have become the zayen."
-};
-
-const _cursedEvents = [
-  {min:1, fn:()=>toast("you've been clicking for a while now...")},
-  {min:1, fn:()=>toast("zayen is pleased with your devotion")},
-  {min:2, fn:()=>toast("something is counting your clicks")},
-  {min:2, fn:()=>toast("the numbers grow. the hunger grows.")},
-  {min:3, fn:()=>toast("why are you still here")},
-  {min:3, fn:()=>toast("it's watching through the screen")},
-  {min:3, fn:()=>{const z=document.getElementById("zayen");z.style.transform="rotate(12deg) scale(1.1)";setTimeout(()=>z.style.transform="",700);}},
-  {min:4, fn:()=>toast("IT SEES YOU NOW")},
-  {min:4, fn:()=>toast("THERE IS NO ESCAPE FROM THE ZAYEN")},
-  {min:4, fn:()=>{document.body.style.filter="invert(1) hue-rotate(180deg)";setTimeout(()=>document.body.style.filter="",180);}},
-  {min:5, fn:()=>toast("you are the zayen now")},
-  {min:5, fn:()=>toast("h e l p   m e")},
-  {min:5, fn:()=>toast("the void consumes everything")},
-  {min:5, fn:()=>{document.body.style.filter="hue-rotate(180deg) contrast(2) brightness(0.4)";setTimeout(()=>document.body.style.filter="",400);}},
-  {min:5, fn:()=>{document.body.style.transform="rotate(2deg)";setTimeout(()=>document.body.style.transform="",300);}}
-];
-
-const _cursedGenNames = {
-  clone:       ["","","something wearing zayen's face","THE DOPPELGÄNGER",    "i am also zayen"],
-  pet:         ["","","the thing that follows",         "IT WATCHES FROM BEHIND","always behind you"],
-  factory:     ["","","the screaming halls",            "INFINITE SUFFERING",   "they never stop"],
-  portal:      ["","","the hungry door",               "DO NOT LOOK INSIDE",   "it opens both ways"],
-  dim:         ["","","the space between spaces",       "THE FRACTURE",         "void pocket"],
-  nexus:       ["","","the convergence point",          "ALL PATHS LEAD HERE",  "you cannot avoid it"],
-  singularity: ["","","the point of no return",         "INFINITE DENSITY",     "beyond this, nothing"],
-  galaxy:      ["","","the hungry star",               "CONSUMING GALAXY",     "it eats light"],
-  universe:    ["","","the wrong sky",                 "EVERYTHING IS WRONG",  "outside all things"],
-  multiverse:  ["","","all that exists",               "INFINITE HORROR",      "you have broken it"]
-};
-
-const _cursedLabels = [
-  {zayens:"Zayens",       click:"Per click",    sec:"Per second",         gems:"Gems",    stars:"Prestige Stars"},
-  {zayens:"Zayens",       click:"Per click",    sec:"Per second",         gems:"Gems",    stars:"Prestige Stars"},
-  {zayens:"Zayens",       click:"Per click",    sec:"Per second",         gems:"Gems",    stars:"Stars"},
-  {zayens:"Power",        click:"Per strike",   sec:"Per breath",         gems:"Shards",  stars:"Corrupted Stars"},
-  {zayens:"POWER",        click:"PER SACRIFICE","sec":"PER SCREAM",       gems:"TOKENS",  stars:"SOULS COLLECTED"},
-  {zayens:"it feeds",     click:"per offering", sec:"the consumption",    gems:"remnants",stars:"void marks"}
-];
-
-function getCursedGenName(g) {
-  const cl = corruptionLevel();
-  const names = _cursedGenNames[g.id];
-  return (names && cl >= 2 && names[cl]) ? names[cl] : g.name;
-}
-
-function applyCorruption(lvl) {
-  const body = document.body;
-  for (let i = 1; i <= 5; i++) body.classList.remove("corrupt-"+i);
-  if (lvl > 0) body.classList.add("corrupt-"+lvl);
-
-  const filters = [
-    "",
-    "hue-rotate(20deg) saturate(1.4)",
-    "hue-rotate(60deg) saturate(2) contrast(1.15)",
-    "hue-rotate(140deg) saturate(2.8) contrast(1.4) brightness(0.8)",
-    "hue-rotate(210deg) saturate(3.5) contrast(1.6) brightness(0.6) blur(0.5px)",
-    "hue-rotate(0deg) saturate(5) contrast(2.5) brightness(0.4) blur(1px) invert(0.12)"
-  ];
-  const zayen = document.getElementById("zayen");
-  if (zayen) zayen.style.filter = filters[lvl] || "";
-
-  const titles = ["Zayen Clicker","Zayen Clicker","zayen clicker...","something is wrong","ZAYEN IS COMING","the zayen"];
-  if (document.title !== titles[lvl]) document.title = titles[lvl];
-
-  const lbl = _cursedLabels[lvl];
-  document.getElementById("lbl_zayens").textContent = lbl.zayens;
-  document.getElementById("lbl_click").textContent  = lbl.click;
-  document.getElementById("lbl_sec").textContent    = lbl.sec;
-  document.getElementById("lbl_gems").textContent   = lbl.gems;
-  document.getElementById("lbl_stars").textContent  = lbl.stars;
-}
-
-function tickCorruption() {
-  const cl = corruptionLevel();
-  applyCorruption(cl);
-  if (cl > 0 && !_shownCorruption.has(cl)) {
-    _shownCorruption.add(cl);
-    setTimeout(()=>toast(_corruptMilestoneMsg[cl]), 800);
-  }
-  if (cl > 0) {
-    const pool = _cursedEvents.filter(e=>e.min<=cl);
-    if (pool.length && Math.random() < 0.003 * cl)
-      pool[Math.floor(Math.random()*pool.length)].fn();
-  }
-}
-// ───────────────────────────────────────────────────────────────
 
 
 function nextMilestone() {
@@ -1326,7 +1207,7 @@ function render() {
     const cost = n > 0 ? bulkCost(g.base, g.scale, owned, n, disc) : Infinity;
     const speedMult = speedTiers[state.genSpeed[g.id] || 0];
     const label = n > 1 ? `×${n} — ${fmt(cost)}` : fmt(cost);
-    return `<div class="upgrade"><div class="row"><div><h3>${getCursedGenName(g)} <span style="color:var(--gold);font-size:.85rem">⚡${speedMult}x</span></h3><div class="small">${g.cps * speedMult}/sec each • Owned: ${owned}</div></div><button ${state.zayens<cost||n<1?"disabled":""} onclick="buyGenerator('${g.id}')">${label}</button></div></div>`;
+    return `<div class="upgrade"><div class="row"><div><h3>${g.name} <span style="color:var(--gold);font-size:.85rem">⚡${speedMult}x</span></h3><div class="small">${g.cps * speedMult}/sec each • Owned: ${owned}</div></div><button ${state.zayens<cost||n<1?"disabled":""} onclick="buyGenerator('${g.id}')">${label}</button></div></div>`;
   }).join("");
 
   document.getElementById("speedList").innerHTML = generators.map(g=>{
@@ -1594,7 +1475,6 @@ setInterval(()=>{
       if (r > 0) { state.gems += r; toast("Gem Rain: +" + r + " gems"); }
     }
     checkAchievements();
-    tickCorruption();
     if (!_infinityCooldown && !isFinite(state.zayens)) {
       _infinityCooldown = true;
       triggerInfinityEvent();
