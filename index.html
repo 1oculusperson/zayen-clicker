@@ -466,17 +466,21 @@ let state = {
 };
 
 const upgrades = [
-  {id:"fingers",  name:"Fast Fingers",   desc:"+1 base per click",     base:15,        scale:1.22, effect:()=>state.clickPower += 1},
-  {id:"gloves",   name:"Golden Gloves",  desc:"+5 base per click",     base:180,       scale:1.26, effect:()=>state.clickPower += 5},
-  {id:"energy",   name:"Zayen Energy",   desc:"+15% production",       base:600,       scale:1.32, effect:()=>state.multiplier *= 1.15},
-  {id:"hyper",    name:"Hyper Tap",      desc:"+25 base per click",    base:2500,      scale:1.28, effect:()=>state.clickPower += 25},
-  {id:"quantum",  name:"Quantum Fist",   desc:"+100 base per click",   base:75000,     scale:1.30, effect:()=>state.clickPower += 100},
-  {id:"reality",  name:"Reality Shatter",desc:"+500 base per click",   base:2500000,   scale:1.32, effect:()=>state.clickPower += 500},
-  {id:"void",     name:"Void Strike",    desc:"+2500 base per click",  base:500000000,      scale:1.35, effect:()=>state.clickPower += 2500},
-  {id:"astral",   name:"Astral Fist",   desc:"+10K base per click",   base:20000000000,    scale:1.38, effect:()=>state.clickPower += 10000},
-  {id:"cosmic",   name:"Cosmic Surge",  desc:"+50% production",       base:5000000000000,  scale:1.40, effect:()=>state.multiplier *= 1.5},
-  {id:"omni",     name:"Omni Pulse",    desc:"+50K base per click",   base:1e15,           scale:1.42, effect:()=>state.clickPower += 50000},
-  {id:"eternal",  name:"Eternal Will",  desc:"+200K base per click",  base:5e17,           scale:1.45, effect:()=>state.clickPower += 200000}
+  // ── Flat click power (cheap-to-costly) ──────────────────────────────────
+  {id:"fingers",   name:"Fast Fingers",     desc:"+1 base per click",    base:15,          scale:1.22, effect:()=>state.clickPower += 1},
+  {id:"gloves",    name:"Golden Gloves",    desc:"+5 base per click",    base:180,          scale:1.26, effect:()=>state.clickPower += 5},
+  {id:"hyper",     name:"Hyper Tap",        desc:"+25 base per click",   base:2500,         scale:1.28, effect:()=>state.clickPower += 25},
+  {id:"quantum",   name:"Quantum Fist",     desc:"+100 base per click",  base:75000,        scale:1.30, effect:()=>state.clickPower += 100},
+  {id:"reality",   name:"Reality Shatter",  desc:"+500 base per click",  base:2500000,      scale:1.32, effect:()=>state.clickPower += 500},
+  {id:"void",      name:"Void Strike",      desc:"+2500 base per click", base:500000000,    scale:1.35, effect:()=>state.clickPower += 2500},
+  {id:"astral",    name:"Astral Fist",      desc:"+10K base per click",  base:20000000000,  scale:1.38, effect:()=>state.clickPower += 10000},
+  {id:"omni",      name:"Omni Pulse",       desc:"+50K base per click",  base:1e15,         scale:1.42, effect:()=>state.clickPower += 50000},
+  {id:"eternal",   name:"Eternal Will",     desc:"+200K base per click", base:5e17,         scale:1.45, effect:()=>state.clickPower += 200000},
+  // ── Production % multipliers (intentionally brutal cost + steep scale) ──
+  {id:"energy",    name:"Zayen Energy",     desc:"+15% production",      base:30000,        scale:1.52, effect:()=>state.multiplier *= 1.15},
+  {id:"amplifier", name:"Zayen Amplifier",  desc:"+30% production",      base:8000000000,   scale:1.58, effect:()=>state.multiplier *= 1.30},
+  {id:"cosmic",    name:"Cosmic Surge",     desc:"+50% production",      base:2e15,         scale:1.65, effect:()=>state.multiplier *= 1.50},
+  {id:"realAmp",   name:"Reality Amplifier",desc:"+75% production",      base:5e21,         scale:1.72, effect:()=>state.multiplier *= 1.75}
 ];
 
 const generators = [
