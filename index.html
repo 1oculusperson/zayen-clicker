@@ -369,17 +369,23 @@ let state = {
 };
 
 const upgrades = [
-  {id:"fingers", name:"Fast Fingers", desc:"+1 base per click", base:15, scale:1.48, effect:()=>state.clickPower += 1},
-  {id:"gloves", name:"Golden Gloves", desc:"+5 base per click", base:180, scale:1.55, effect:()=>state.clickPower += 5},
-  {id:"energy", name:"Zayen Energy", desc:"+15% production", base:600, scale:1.7, effect:()=>state.multiplier *= 1.15},
-  {id:"hyper", name:"Hyper Tap", desc:"+25 base per click", base:2500, scale:1.62, effect:()=>state.clickPower += 25}
+  {id:"fingers",  name:"Fast Fingers",   desc:"+1 base per click",     base:15,        scale:1.22, effect:()=>state.clickPower += 1},
+  {id:"gloves",   name:"Golden Gloves",  desc:"+5 base per click",     base:180,       scale:1.26, effect:()=>state.clickPower += 5},
+  {id:"energy",   name:"Zayen Energy",   desc:"+15% production",       base:600,       scale:1.32, effect:()=>state.multiplier *= 1.15},
+  {id:"hyper",    name:"Hyper Tap",      desc:"+25 base per click",    base:2500,      scale:1.28, effect:()=>state.clickPower += 25},
+  {id:"quantum",  name:"Quantum Fist",   desc:"+100 base per click",   base:75000,     scale:1.30, effect:()=>state.clickPower += 100},
+  {id:"reality",  name:"Reality Shatter",desc:"+500 base per click",   base:2500000,   scale:1.32, effect:()=>state.clickPower += 500},
+  {id:"void",     name:"Void Strike",    desc:"+2500 base per click",  base:500000000, scale:1.35, effect:()=>state.clickPower += 2500}
 ];
 
 const generators = [
-  {id:"clone", name:"Zayen Clone", desc:"+1 base/sec", base:40, scale:1.55, cps:1},
-  {id:"pet", name:"Zayen Pet", desc:"+8 base/sec", base:550, scale:1.6, cps:8},
-  {id:"factory", name:"Zayen Factory", desc:"+60 base/sec", base:6500, scale:1.65, cps:60},
-  {id:"portal", name:"Zayen Portal", desc:"+500 base/sec", base:90000, scale:1.7, cps:500}
+  {id:"clone",       name:"Zayen Clone",       desc:"+1 base/sec",        base:40,          scale:1.13, cps:1},
+  {id:"pet",         name:"Zayen Pet",          desc:"+8 base/sec",        base:550,         scale:1.13, cps:8},
+  {id:"factory",     name:"Zayen Factory",      desc:"+60 base/sec",       base:6500,        scale:1.13, cps:60},
+  {id:"portal",      name:"Zayen Portal",       desc:"+500 base/sec",      base:90000,       scale:1.13, cps:500},
+  {id:"dim",         name:"Zayen Dimension",    desc:"+5K base/sec",       base:2000000,     scale:1.13, cps:5000},
+  {id:"nexus",       name:"Zayen Nexus",        desc:"+80K base/sec",      base:50000000,    scale:1.13, cps:80000},
+  {id:"singularity", name:"Zayen Singularity",  desc:"+3M base/sec",       base:2000000000,  scale:1.13, cps:3000000}
 ];
 
 const skills = [
@@ -437,10 +443,17 @@ const achievements = [
   {id:"level25",   name:"Level 25",             check:()=>state.level>=25,                 reward:20},
   {id:"level50",   name:"Level 50",             check:()=>state.level>=50,                 reward:40},
   {id:"prestige1", name:"First Prestige",       check:()=>state.stars>=1,                  reward:15},
-  {id:"prestige5", name:"Star Collector",       check:()=>state.stars>=5,                  reward:25},
-  {id:"streak7",   name:"7-Day Streak",         check:()=>state.streak>=7,                 reward:20},
-  {id:"allAreas",  name:"World Traveler",       check:()=>areas.every(a=>!!state.areas[a.id]), reward:30},
-  {id:"skillFull", name:"Master of Skills",     check:()=>skills.every(s=>!!state.skills[s.id]), reward:40}
+  {id:"prestige5",  name:"Star Collector",       check:()=>state.stars>=5,                    reward:25},
+  {id:"prestige25", name:"Star Hoarder",         check:()=>state.stars>=25,                   reward:50},
+  {id:"streak7",    name:"7-Day Streak",         check:()=>state.streak>=7,                   reward:20},
+  {id:"allAreas",   name:"World Traveler",       check:()=>areas.every(a=>!!state.areas[a.id]), reward:30},
+  {id:"skillFull",  name:"Master of Skills",     check:()=>skills.every(s=>!!state.skills[s.id]), reward:40},
+  {id:"auto100",    name:"Legion",               check:()=>countGenerators()>=100,            reward:25},
+  {id:"level75",    name:"Level 75",             check:()=>state.level>=75,                   reward:60},
+  {id:"level100",   name:"Level 100",            check:()=>state.level>=100,                  reward:100},
+  {id:"z1qa",       name:"1 Quadrillion Zayens", check:()=>state.lifetime>=1e15,              reward:75},
+  {id:"z1qi",       name:"1 Quintillion Zayens", check:()=>state.lifetime>=1e18,              reward:120},
+  {id:"allLategen", name:"Full Armory",          check:()=>generators.every(g=>(state.generators[g.id]||0)>0), reward:20}
 ];
 
 const quests = [
@@ -454,13 +467,19 @@ const quests = [
   {id:"qauto20",   name:"Own 20 generators",            progress:()=>countGenerators(), need:20,         reward:12},
   {id:"qlevel5",   name:"Reach level 5",                progress:()=>state.level,       need:5,          reward:8},
   {id:"qlevel15",  name:"Reach level 15",               progress:()=>state.level,       need:15,         reward:18},
-  {id:"qprestige", name:"Prestige at least once",       progress:()=>state.stars,       need:1,          reward:20},
-  {id:"qstreak3",  name:"Maintain a 3-day streak",      progress:()=>state.streak,      need:3,          reward:10}
+  {id:"qprestige",  name:"Prestige at least once",        progress:()=>state.stars,       need:1,           reward:20},
+  {id:"qstreak3",   name:"Maintain a 3-day streak",       progress:()=>state.streak,      need:3,           reward:10},
+  {id:"qearn1t",    name:"Earn 1T lifetime Zayens",       progress:()=>state.lifetime,    need:1e12,        reward:40},
+  {id:"qearn1qa",   name:"Earn 1Qa lifetime Zayens",      progress:()=>state.lifetime,    need:1e15,        reward:65},
+  {id:"qclicks50k", name:"Click 50,000 times",            progress:()=>state.totalClicks, need:50000,       reward:30},
+  {id:"qauto50",    name:"Own 50 generators",             progress:()=>countGenerators(), need:50,          reward:20},
+  {id:"qlevel30",   name:"Reach level 30",                progress:()=>state.level,       need:30,          reward:25},
+  {id:"qallgen2",   name:"Own every generator type",      progress:()=>generators.filter(g=>(state.generators[g.id]||0)>0).length, need:generators.length, reward:35}
 ];
 
 function fmt(n) {
   if (n < 1000) return Math.floor(n).toString();
-  const units = ["K","M","B","T","Qa","Qi"];
+  const units = ["K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc"];
   let u = -1;
   while (n >= 1000 && u < units.length - 1) { n /= 1000; u++; }
   return n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2) + units[u];
@@ -544,7 +563,7 @@ function earn(amount) {
 }
 
 function xpNeed() {
-  return Math.floor(100 * Math.pow(1.32, state.level - 1));
+  return Math.floor(100 * Math.pow(1.18, state.level - 1));
 }
 
 function countGenerators() {
@@ -814,7 +833,7 @@ function collectQuest(id) {
 // ── Corruption System ──────────────────────────────────────────
 const _shownCorruption = new Set();
 
-const _corruptionThresholds = [0, 100000, 1000000, 10000000, 100000000, 1000000000];
+const _corruptionThresholds = [0, 1e15, 1e16, 1e17, 1e18, 1e19];
 
 function corruptionLevel() {
   const lt = state.lifetime;
@@ -850,10 +869,13 @@ const _cursedEvents = [
 ];
 
 const _cursedGenNames = {
-  clone: ["","","something wearing zayen's face","THE DOPPELGÄNGER","i am also zayen"],
-  pet:   ["","","the thing that follows","IT WATCHES FROM BEHIND","always behind you"],
-  factory:["","","the screaming halls","INFINITE SUFFERING","they never stop"],
-  portal: ["","","the hungry door","DO NOT LOOK INSIDE","it opens both ways"]
+  clone:       ["","","something wearing zayen's face","THE DOPPELGÄNGER",    "i am also zayen"],
+  pet:         ["","","the thing that follows",         "IT WATCHES FROM BEHIND","always behind you"],
+  factory:     ["","","the screaming halls",            "INFINITE SUFFERING",   "they never stop"],
+  portal:      ["","","the hungry door",               "DO NOT LOOK INSIDE",   "it opens both ways"],
+  dim:         ["","","the space between spaces",       "THE FRACTURE",         "void pocket"],
+  nexus:       ["","","the convergence point",          "ALL PATHS LEAD HERE",  "you cannot avoid it"],
+  singularity: ["","","the point of no return",         "INFINITE DENSITY",     "beyond this, nothing"]
 };
 
 const _cursedLabels = [
@@ -914,7 +936,7 @@ function tickCorruption() {
 // ───────────────────────────────────────────────────────────────
 
 function nextMilestone() {
-  const milestones = [100,1000,10000,100000,1000000,10000000];
+  const milestones = [100,1000,10000,100000,1e6,1e7,1e9,1e12,1e15,1e18,1e21];
   return milestones.find(m=>state.lifetime < m) || milestones[milestones.length-1];
 }
 
