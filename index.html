@@ -714,7 +714,8 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
         <div class="statbox"><div class="statval" id="coopPerClick">1</div><div class="statlbl">Per Click</div></div>
         <div class="statbox"><div class="statval" id="coopPerSec">0</div><div class="statlbl">Per Second</div></div>
         <div class="statbox"><div class="statval">×<span id="coopMult">1.00</span></div><div class="statlbl">Multiplier</div></div>
-        <div class="statbox"><div class="statval" id="coopClicks">0</div><div class="statlbl">Total Clicks</div></div>
+        <div class="statbox"><div class="statval"><span id="coopGems">0</span> 💎</div><div class="statlbl">Shared Gems</div></div>
+        <div class="statbox statwide"><div class="statval"><span id="coopClicks">0</span> clicks • Area: <span id="coopAreaName">Classroom</span></div></div>
       </div>
       <div class="coop-players" id="coopPlayers"></div>
       <div class="coop-feed" id="coopFeed"></div>
@@ -722,9 +723,12 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
     <section class="card">
       <div class="coop-tabs">
         <button class="active" id="coopTabUp" onclick="coopShowTab('up')">Upgrades</button>
-        <button id="coopTabGen" onclick="coopShowTab('gen')">Generators</button>
+        <button id="coopTabGen" onclick="coopShowTab('gen')">Gens</button>
+        <button id="coopTabSpeed" onclick="coopShowTab('speed')">Speed</button>
+        <button id="coopTabArea" onclick="coopShowTab('area')">Areas</button>
+        <button id="coopTabSkill" onclick="coopShowTab('skill')">Skills 💎</button>
       </div>
-      <div class="buy-toggle">
+      <div class="buy-toggle" id="coopBuyToggle">
         <button class="amt-btn active" onclick="coopSetAmt(1,this)">×1</button>
         <button class="amt-btn" onclick="coopSetAmt(10,this)">×10</button>
         <button class="amt-btn" onclick="coopSetAmt(25,this)">×25</button>
@@ -732,6 +736,9 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
       </div>
       <div id="coopUpList"></div>
       <div id="coopGenList" style="display:none"></div>
+      <div id="coopSpeedList" style="display:none"></div>
+      <div id="coopAreaList" style="display:none"></div>
+      <div id="coopSkillList" style="display:none"></div>
     </section>
   </div>
 </div>
@@ -1665,6 +1672,23 @@ let _coopClickBuf = 0, _coopClickCount = 0;
 let _coopLastSync = 0;
 let _coopSmoothTimer=null, _coopFlushTimer=null, _coopSyncTimer=null, _coopRenderAcc=0;
 
+// Curated co-op skill set (bought with the room's shared gems).
+// click = click multiplier, gen = generator-output multiplier,
+// mult = total production multiplier, disc = cheaper costs, gemDisc = cheaper skills.
+const coopSkills = [
+  {id:"tapMastery",    name:"Tap Mastery",       desc:"+20% click power",        cost:5,  click:1.2},
+  {id:"idleMastery",   name:"Idle Mastery",      desc:"+20% generator output",   cost:5,  gen:1.2},
+  {id:"discounts",     name:"Inflation Control", desc:"All costs 10% cheaper",   cost:8,  disc:0.9},
+  {id:"genMastery",    name:"Generator Mastery", desc:"+30% generator output",   cost:20, gen:1.3},
+  {id:"gemEfficiency", name:"Gem Efficiency",    desc:"Skills cost 20% fewer gems", cost:15, gemDisc:0.8},
+  {id:"areaMastery",   name:"Area Mastery",      desc:"+25% total production",   cost:20, mult:1.25},
+  {id:"voidTouch",     name:"Void Touch",        desc:"+20% total production",   cost:50, mult:1.2},
+  {id:"transcendence", name:"Transcendence",     desc:"+50% total production",   cost:60, mult:1.5}
+];
+function coopCostDisc(){ return (_coopRoom && _coopRoom.skills && _coopRoom.skills.discounts) ? 0.9 : 1; }
+function coopGemDisc(){  return (_coopRoom && _coopRoom.skills && _coopRoom.skills.gemEfficiency) ? 0.8 : 1; }
+function coopAreaMult(area){ const a = areas.find(x=>x.id===area); return a ? a.mult : 1; }
+
 function coopReady(){ return !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase); }
 function coopClient(){
   if (!_sb && coopReady()) _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -1708,6 +1732,7 @@ async function coopEnter(code){
   const { data, error } = await sb.rpc("coop_get", { p_code: code });
   if (error) { alert("Couldn't join room: " + error.message); coopLeave(); return; }
   applyRoom(Array.isArray(data) ? data[0] : data);
+  coopShowTab("up");
 
   _coopCh = sb.channel("coop:" + code, { config:{ presence:{ key: _coopName + ":" + Math.random().toString(36).slice(2,7) } } });
   _coopCh
@@ -1746,7 +1771,10 @@ function applyRoom(row){
   row.click_power = Number(row.click_power) || 1;
   row.multiplier  = Number(row.multiplier)  || 1;
   row.clicks      = Number(row.clicks)      || 0;
+  row.gems        = Number(row.gems)        || 0;
   row.gens = row.gens || {}; row.ups = row.ups || {};
+  row.speed = row.speed || {}; row.skills = row.skills || {};
+  row.area = row.area || "classroom";
   _coopRoom = row;
   _coopLastSync = Date.now();
   coopRenderStats();
@@ -1758,15 +1786,26 @@ function coopDisplayZayens(){
   return _coopRoom.zayens + _coopRoom.cps * (Date.now() - _coopLastSync) / 1000;
 }
 
-// Derive effective stats from owned counts by replaying upgrade effects
-function coopDerive(ups, gens){
+// Derive effective stats from a room-like object {ups,gens,speed,skills,area}
+// by replaying upgrade effects and applying speed tiers, area + skill mults.
+function coopDerive(rm){
+  const ups = rm.ups||{}, gens = rm.gens||{}, speed = rm.speed||{}, sk = rm.skills||{};
   const sCp = state.clickPower, sM = state.multiplier;
   state.clickPower = 1; state.multiplier = 1;
   upgrades.forEach(u => { const n = ups[u.id]||0; for (let i=0;i<n;i++) u.effect(); });
-  const cp = state.clickPower, m = state.multiplier;
+  let cp = state.clickPower, m = state.multiplier;
   state.clickPower = sCp; state.multiplier = sM;
-  const baseCps = generators.reduce((s,g)=>s + (gens[g.id]||0) * g.cps, 0);
-  return { clickPower: cp, multiplier: m, cps: baseCps * m };
+  // area + skill multipliers
+  let totalMult = m * coopAreaMult(rm.area||"classroom");
+  let clickMult = 1, genMult = 1;
+  coopSkills.forEach(s => { if (sk[s.id]) {
+    if (s.mult)  totalMult *= s.mult;
+    if (s.click) clickMult *= s.click;
+    if (s.gen)   genMult   *= s.gen;
+  }});
+  // base per-second with generator speed tiers
+  const baseCps = generators.reduce((s,g)=>s + (gens[g.id]||0) * g.cps * speedTiers[speed[g.id]||0], 0);
+  return { clickPower: cp * clickMult, multiplier: totalMult, cps: baseCps * genMult * totalMult };
 }
 
 function coopSmoothTick(){
@@ -1783,33 +1822,67 @@ function coopRenderStats(){
   document.getElementById("coopPerSec").innerText = fmt(r.cps);
   document.getElementById("coopMult").innerText = r.multiplier.toFixed(2);
   document.getElementById("coopClicks").innerText = fmt(r.clicks);
+  document.getElementById("coopGems").innerText = fmt(r.gems);
+  const a = areas.find(x=>x.id===(r.area||"classroom")) || areas[0];
+  document.getElementById("coopAreaName").innerText = a.name;
 }
 
 function coopRenderLists(){
   const r = _coopRoom; if (!r) return;
   const budget = coopDisplayZayens();
+  const disc = coopCostDisc();
   document.getElementById("coopUpList").innerHTML = upgrades.map(u=>{
     const owned = r.ups[u.id]||0;
-    const n = _coopBuyAmt==="max" ? maxBuyableN(u.base,u.scale,owned,budget,1) : _coopBuyAmt;
-    const cost = n>0 ? bulkCost(u.base,u.scale,owned,n,1) : Infinity;
+    const n = _coopBuyAmt==="max" ? maxBuyableN(u.base,u.scale,owned,budget,disc) : _coopBuyAmt;
+    const cost = n>0 ? bulkCost(u.base,u.scale,owned,n,disc) : Infinity;
     const label = n>1 ? `×${n} — ${fmt(cost)}` : fmt(cost);
     return `<div class="upgrade"><div class="row"><div><h3>${u.name}</h3><div class="small">${u.desc}<br>Owned: ${owned}</div></div><button ${budget<cost||n<1?"disabled":""} onclick="coopBuy('up','${u.id}')">${label}</button></div></div>`;
   }).join("");
   document.getElementById("coopGenList").innerHTML = generators.map(g=>{
     const owned = r.gens[g.id]||0;
-    const n = _coopBuyAmt==="max" ? maxBuyableN(g.base,g.scale,owned,budget,1) : _coopBuyAmt;
-    const cost = n>0 ? bulkCost(g.base,g.scale,owned,n,1) : Infinity;
+    const spd = speedTiers[r.speed[g.id]||0];
+    const n = _coopBuyAmt==="max" ? maxBuyableN(g.base,g.scale,owned,budget,disc) : _coopBuyAmt;
+    const cost = n>0 ? bulkCost(g.base,g.scale,owned,n,disc) : Infinity;
     const label = n>1 ? `×${n} — ${fmt(cost)}` : fmt(cost);
-    return `<div class="upgrade"><div class="row"><div><h3>${g.name}</h3><div class="small">${g.cps}/sec each • Owned: ${owned}</div></div><button ${budget<cost||n<1?"disabled":""} onclick="coopBuy('gen','${g.id}')">${label}</button></div></div>`;
+    return `<div class="upgrade"><div class="row"><div><h3>${g.name} <span style="color:var(--gold);font-size:.85rem">⚡${spd}x</span></h3><div class="small">${g.cps*spd}/sec each • Owned: ${owned}</div></div><button ${budget<cost||n<1?"disabled":""} onclick="coopBuy('gen','${g.id}')">${label}</button></div></div>`;
   }).join("");
+  // Speed
+  document.getElementById("coopSpeedList").innerHTML = generators.map(g=>{
+    const lvl = r.speed[g.id]||0;
+    const spd = speedTiers[lvl];
+    const maxed = lvl >= speedTiers.length-1;
+    const cost = coopSpeedCost(g);
+    return `<div class="upgrade"><div class="row"><div><h3>${g.name}</h3><div class="small">Current: ${spd}x • ${maxed?"MAX SPEED":"Next: "+speedTiers[lvl+1]+"x"}</div></div><button style="background:var(--blue);color:#111" ${maxed||budget<cost?"disabled":""} onclick="coopBuySpeed('${g.id}')">${maxed?"MAX":fmt(cost)}</button></div></div>`;
+  }).join("");
+  // Areas
+  document.getElementById("coopAreaList").innerHTML = areas.map(a=>{
+    const unlocked = r.lifetime >= a.need;
+    const active = (r.area||"classroom") === a.id;
+    return `<div class="area"><div class="row"><div><h3>${a.name}</h3><div class="small">Production ×${a.mult} • Unlock at ${fmt(a.need)} lifetime</div></div><button ${!unlocked||active?"disabled":""} onclick="coopTravel('${a.id}')">${active?"Active":(unlocked?"Travel":"Locked")}</button></div></div>`;
+  }).join("");
+  // Skills (gems)
+  document.getElementById("coopSkillList").innerHTML = coopSkills.map(s=>{
+    const owned = !!r.skills[s.id];
+    const cost = Math.ceil(s.cost * coopGemDisc());
+    return `<div class="skill"><div class="row"><div><h3>${s.name}</h3><div class="small">${s.desc}</div></div><button ${owned||r.gems<cost?"disabled":""} onclick="coopBuy('skill','${s.id}')">${owned?"Owned":cost+" 💎"}</button></div></div>`;
+  }).join("");
+}
+
+function coopSpeedCost(g){
+  const lvl = (_coopRoom && _coopRoom.speed[g.id]) || 0;
+  return Math.floor(g.base * 10 * Math.pow(4, lvl) * coopCostDisc());
 }
 
 function coopShowTab(t){
   _coopTab = t;
-  document.getElementById("coopTabUp").classList.toggle("active", t==="up");
-  document.getElementById("coopTabGen").classList.toggle("active", t==="gen");
-  document.getElementById("coopUpList").style.display  = t==="up" ? "block":"none";
-  document.getElementById("coopGenList").style.display = t==="gen"? "block":"none";
+  const tabs = {up:"coopTabUp", gen:"coopTabGen", speed:"coopTabSpeed", area:"coopTabArea", skill:"coopTabSkill"};
+  const lists = {up:"coopUpList", gen:"coopGenList", speed:"coopSpeedList", area:"coopAreaList", skill:"coopSkillList"};
+  Object.keys(tabs).forEach(k=>{
+    document.getElementById(tabs[k]).classList.toggle("active", k===t);
+    document.getElementById(lists[k]).style.display = k===t ? "block":"none";
+  });
+  // Buy-amount toggle only applies to upgrades & generators
+  document.getElementById("coopBuyToggle").style.display = (t==="up"||t==="gen") ? "flex":"none";
 }
 function coopSetAmt(amt, btn){
   _coopBuyAmt = amt;
@@ -1836,29 +1909,65 @@ async function coopFlushClicks(){
   if (data) applyRoom(Array.isArray(data)?data[0]:data);
 }
 
-async function coopBuy(kind, id){
-  const r = _coopRoom; if (!r) return;
-  const list = kind==="up" ? upgrades : generators;
-  const def = list.find(x=>x.id===id); if (!def) return;
-  const map = kind==="up" ? r.ups : r.gens;
-  const owned = map[id]||0;
-  const budget = coopDisplayZayens();
-  const n = _coopBuyAmt==="max" ? maxBuyableN(def.base,def.scale,owned,budget,1) : _coopBuyAmt;
-  if (n < 1) return;
-  const cost = bulkCost(def.base,def.scale,owned,n,1);
-  if (budget < cost) return;
-  // compute resulting stats
-  const newUps  = Object.assign({}, r.ups);
-  const newGens = Object.assign({}, r.gens);
-  (kind==="up" ? newUps : newGens)[id] = owned + n;
-  const d = coopDerive(newUps, newGens);
+async function coopRpcBuy(cost, kind, id, qty, rmLike, feedName){
+  const d = coopDerive(rmLike);
   const { data, error } = await _sb.rpc("coop_buy", {
-    p_code:_coopCode, p_cost:cost, p_kind:kind, p_id:id, p_qty:n,
+    p_code:_coopCode, p_cost:cost, p_kind:kind, p_id:id, p_qty:qty,
     p_cps:d.cps, p_click:d.clickPower, p_mult:d.multiplier
   });
   if (error) return;
   applyRoom(Array.isArray(data)?data[0]:data);
-  if (_coopCh) _coopCh.send({ type:"broadcast", event:"feed", payload:{ msg:`${_coopName} bought ${def.name}${n>1?" ×"+n:""}` } });
+  if (feedName && _coopCh) _coopCh.send({ type:"broadcast", event:"feed", payload:{ msg:feedName } });
+}
+
+async function coopBuy(kind, id){
+  const r = _coopRoom; if (!r) return;
+
+  if (kind === "skill") {
+    const def = coopSkills.find(s=>s.id===id); if (!def || r.skills[id]) return;
+    const cost = Math.ceil(def.cost * coopGemDisc());
+    if (r.gems < cost) return;
+    const rm = { ups:r.ups, gens:r.gens, speed:r.speed, area:r.area,
+                 skills: Object.assign({}, r.skills, {[id]:true}) };
+    return coopRpcBuy(cost, "skill", id, 1, rm, `${_coopName} unlocked ${def.name}`);
+  }
+
+  const list = kind==="up" ? upgrades : generators;
+  const def = list.find(x=>x.id===id); if (!def) return;
+  const owned = (kind==="up" ? r.ups : r.gens)[id]||0;
+  const budget = coopDisplayZayens();
+  const disc = coopCostDisc();
+  const n = _coopBuyAmt==="max" ? maxBuyableN(def.base,def.scale,owned,budget,disc) : _coopBuyAmt;
+  if (n < 1) return;
+  const cost = bulkCost(def.base,def.scale,owned,n,disc);
+  if (budget < cost) return;
+  const rm = { ups:Object.assign({},r.ups), gens:Object.assign({},r.gens), speed:r.speed, skills:r.skills, area:r.area };
+  (kind==="up" ? rm.ups : rm.gens)[id] = owned + n;
+  return coopRpcBuy(cost, kind, id, n, rm, `${_coopName} bought ${def.name}${n>1?" ×"+n:""}`);
+}
+
+async function coopBuySpeed(id){
+  const r = _coopRoom; if (!r) return;
+  const g = generators.find(x=>x.id===id); if (!g) return;
+  const lvl = r.speed[id]||0;
+  if (lvl >= speedTiers.length-1) return;
+  const cost = coopSpeedCost(g);
+  if (coopDisplayZayens() < cost) return;
+  const rm = { ups:r.ups, gens:r.gens, skills:r.skills, area:r.area,
+               speed: Object.assign({}, r.speed, {[id]: lvl+1}) };
+  return coopRpcBuy(cost, "speed", id, lvl+1, rm, `${_coopName} sped up ${g.name} → ${speedTiers[lvl+1]}x`);
+}
+
+async function coopTravel(areaId){
+  const r = _coopRoom; if (!r) return;
+  const a = areas.find(x=>x.id===areaId); if (!a || r.lifetime < a.need || r.area===areaId) return;
+  const rm = { ups:r.ups, gens:r.gens, speed:r.speed, skills:r.skills, area:areaId };
+  const d = coopDerive(rm);
+  const { data } = await _sb.from("coop_rooms")
+    .update({ area:areaId, cps:d.cps, click_power:d.clickPower, multiplier:d.multiplier, updated_at:new Date().toISOString() })
+    .eq("code", _coopCode).select().single();
+  if (data) applyRoom(data);
+  if (_coopCh) _coopCh.send({ type:"broadcast", event:"feed", payload:{ msg:`${_coopName} moved the room to ${a.name}` } });
 }
 
 function coopSyncPresence(){
@@ -1901,7 +2010,7 @@ function coopAdminMaxGens(){
   if (!_coopRoom) return;
   const g = Object.assign({}, _coopRoom.gens);
   generators.forEach(x => { g[x.id] = (g[x.id]||0) + 100; });
-  const d = coopDerive(_coopRoom.ups, g);
+  const d = coopDerive({ ups:_coopRoom.ups, gens:g, speed:_coopRoom.speed, skills:_coopRoom.skills, area:_coopRoom.area });
   coopAdminPatch({ gens:g, cps:d.cps }, `🛠 admin added +100 of every generator`);
 }
 function coopAdminReset(){
@@ -1925,6 +2034,7 @@ window.addEventListener("beforeunload", coopFlushClicks);
 window.openCoop=openCoop; window.closeCoop=closeCoop; window.coopJoin=coopJoin;
 window.coopRandomCode=coopRandomCode; window.coopLeave=coopLeave;
 window.coopShowTab=coopShowTab; window.coopSetAmt=coopSetAmt; window.coopBuy=coopBuy;
+window.coopBuySpeed=coopBuySpeed; window.coopTravel=coopTravel;
 window.coopAdminAddZayens=coopAdminAddZayens; window.coopAdminMult=coopAdminMult;
 window.coopAdminMaxGens=coopAdminMaxGens; window.coopAdminReset=coopAdminReset; window.coopBroadcast=coopBroadcast;
 
