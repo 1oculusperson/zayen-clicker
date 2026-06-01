@@ -633,6 +633,7 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
       <button class="cb" onclick="coopAdminMaxGens()">+100 Gens</button>
       <button class="cb" onclick="coopAdminMult(2)">×2 Mult</button>
       <button class="cb" onclick="coopAdminMult(10)">×10 Mult</button>
+      <button class="cb" onclick="coopAdminRefreshAll()">🔄 Refresh All</button>
       <button class="cb" style="background:rgba(255,80,80,.22)" onclick="coopAdminReset()">Reset Room</button>
     </div>
     <div class="cheat-row" style="margin-top:7px">
@@ -954,6 +955,7 @@ const quests = [
 ];
 
 function fmt(n) {
+  if (!isFinite(n)) return "∞";
   if (n < 1000) return Math.floor(n).toString();
   const units = ["K","M","B","T","Qa","Qi","Sx","Sp","Oc","No","Dc","Ud","Dd","Td","Qad","Qid","Sxd","Spd","Ocd","Nod","Vg","UVg","DVg","TVg","QaVg","QiVg","SxVg","SpVg","OcVg","NoVg","Tg"];
   let u = -1;
@@ -1055,6 +1057,7 @@ function generatorCost(g) {
 }
 
 function earn(amount) {
+  if (!isFinite(amount)) return;   // guard against Infinity/NaN locking the XP loop
   state.zayens += amount;
   state.lifetime += amount;
   state.xp += amount * 0.04 * xpSkillMult();
@@ -1120,8 +1123,10 @@ function bulkCost(base, scale, owned, n, disc) {
 
 function maxBuyableN(base, scale, owned, budget, disc) {
   const first = base * Math.pow(scale, owned) * disc;
-  if (first > budget) return 0;
-  return Math.max(1, Math.floor(Math.log(budget * (scale - 1) / first + 1) / Math.log(scale)));
+  if (!isFinite(first) || first > budget) return 0;
+  let n = Math.floor(Math.log(budget * (scale - 1) / first + 1) / Math.log(scale));
+  if (!isFinite(n)) n = 100000;            // budget overflowed to Infinity — cap it
+  return Math.max(1, Math.min(n, 100000)); // never return a non-finite / runaway count
 }
 
 function setBuyAmt(amt, btn) {
@@ -1733,6 +1738,7 @@ function coopJoin(){
 async function coopEnter(code){
   const sb = coopClient();
   _coopCode = code;
+  localStorage.setItem("coopActiveCode", code);   // so a refresh rejoins instead of kicking you
   document.getElementById("coopRoomCode").textContent = code;
   document.getElementById("coopScreen").classList.add("active");
 
@@ -1746,6 +1752,10 @@ async function coopEnter(code){
     .on("postgres_changes", { event:"*", schema:"public", table:"coop_rooms", filter:"code=eq."+code },
         payload => { if (payload.new) applyRoom(payload.new); })
     .on("broadcast", { event:"feed" }, ({payload}) => coopFeed(payload.msg))
+    .on("broadcast", { event:"refresh" }, () => {
+      coopFeed("🔄 admin refreshed everyone");
+      setTimeout(()=>location.reload(), 200 + Math.random()*500);  // small stagger
+    })
     .on("presence", { event:"sync" }, coopSyncPresence)
     .on("presence", { event:"join" }, ({newPresences}) => newPresences.forEach(p=>coopFeed("→ " + p.name + " joined")))
     .on("presence", { event:"leave" }, ({leftPresences}) => leftPresences.forEach(p=>coopFeed("← " + p.name + " left")))
@@ -1761,6 +1771,7 @@ async function coopEnter(code){
 }
 
 async function coopLeave(){
+  localStorage.removeItem("coopActiveCode");   // explicit leave — don't auto-rejoin
   clearInterval(_coopSmoothTimer); clearInterval(_coopFlushTimer); clearInterval(_coopSyncTimer);
   await coopFlushClicks();
   if (_coopCh && _sb) { try { await _sb.removeChannel(_coopCh); } catch(e){} }
@@ -1806,7 +1817,7 @@ function coopDerive(rm){
   const ups = rm.ups||{}, gens = rm.gens||{}, speed = rm.speed||{}, sk = rm.skills||{};
   const sCp = state.clickPower, sM = state.multiplier;
   state.clickPower = 1; state.multiplier = 1;
-  upgrades.forEach(u => { const n = ups[u.id]||0; for (let i=0;i<n;i++) u.effect(); });
+  upgrades.forEach(u => { const n = Math.min(ups[u.id]||0, 100000); for (let i=0;i<n;i++) u.effect(); });
   let cp = state.clickPower, m = state.multiplier;
   state.clickPower = sCp; state.multiplier = sM;
   // area + skill multipliers
@@ -2078,6 +2089,12 @@ function coopBroadcast(){
   if (_coopCh) _coopCh.send({ type:"broadcast", event:"feed", payload:{ msg } });
   coopFeed(msg);
 }
+function coopAdminRefreshAll(){
+  if (!_coopCh) return;
+  _coopCh.send({ type:"broadcast", event:"refresh", payload:{ by:_coopName } });
+  toast("🔄 refreshing everyone…");
+  setTimeout(()=>location.reload(), 700);   // self isn't included in broadcast, so reload here
+}
 
 document.getElementById("coopZayenImg").addEventListener("click", coopClickImg);
 window.addEventListener("beforeunload", coopFlushClicks);
@@ -2088,7 +2105,16 @@ window.coopShowTab=coopShowTab; window.coopSetAmt=coopSetAmt; window.coopBuy=coo
 window.coopBuySpeed=coopBuySpeed; window.coopTravel=coopTravel;
 window.coopAdminAddZayens=coopAdminAddZayens; window.coopAdminMult=coopAdminMult;
 window.coopAdminMaxGens=coopAdminMaxGens; window.coopAdminReset=coopAdminReset; window.coopBroadcast=coopBroadcast;
-window.coopAdminToggleFreeze=coopAdminToggleFreeze;
+window.coopAdminToggleFreeze=coopAdminToggleFreeze; window.coopAdminRefreshAll=coopAdminRefreshAll;
+
+// Auto-rejoin the active co-op room after a page refresh (instead of being kicked out).
+(function coopAutoRejoin(){
+  const code = localStorage.getItem("coopActiveCode");
+  if (code && coopReady()) {
+    _coopName = localStorage.getItem("coopName") || _coopName;
+    coopEnter(code);
+  }
+})();
 
 // Expose only UI-triggered functions — state and earn stay private
 window.showTab=showTab; window.showSubTab=showSubTab; window.setBuyAmt=setBuyAmt;
