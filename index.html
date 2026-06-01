@@ -250,7 +250,7 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
   display:none;
   position:fixed; inset:0;
   background:rgba(0,0,0,.8);
-  z-index:180;
+  z-index:420;
   align-items:center;
   justify-content:center;
 }
@@ -290,7 +290,8 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
   display:none;
   position:fixed;
   bottom:20px; right:20px;
-  z-index:90;
+  z-index:410;
+  max-height:88vh; overflow-y:auto;
   background:#0a0a18;
   border:1px solid rgba(255,215,0,.3);
   border-radius:18px;
@@ -619,6 +620,28 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
       <button class="cb" onclick="cheatBuyUpgrades()">+10 Upgrades</button>
     </div>
   </div>
+  <div class="cheat-sec" id="cheatCoopSec" style="display:none;border-top:1px solid rgba(255,215,0,.2);padding-top:11px">
+    <div class="cheat-sec-lbl" style="color:var(--blue);opacity:.7">👥 Co-op Room Admin</div>
+    <div class="cheat-row">
+      <button class="cb" onclick="coopAdminAddZayens(1e6)">+1M</button>
+      <button class="cb" onclick="coopAdminAddZayens(1e9)">+1B</button>
+      <button class="cb" onclick="coopAdminAddZayens(1e12)">+1T</button>
+      <button class="cb" onclick="coopAdminAddZayens(1e18)">+1Qi</button>
+      <button class="cb" onclick="coopAdminAddZayens(1e24)">+1Sp</button>
+    </div>
+    <div class="cheat-row" style="margin-top:5px">
+      <button class="cb" onclick="coopAdminMaxGens()">+100 Gens</button>
+      <button class="cb" onclick="coopAdminMult(2)">×2 Mult</button>
+      <button class="cb" onclick="coopAdminMult(10)">×10 Mult</button>
+      <button class="cb" style="background:rgba(255,80,80,.22)" onclick="coopAdminReset()">Reset Room</button>
+    </div>
+    <div class="cheat-row" style="margin-top:7px">
+      <input id="coopBroadcastInput" placeholder="Broadcast to room…" maxlength="120"
+             style="flex:1;min-width:120px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:6px 9px;color:white;font-family:inherit;font-size:.8rem"
+             onkeydown="if(event.key==='Enter')coopBroadcast()">
+      <button class="cb" onclick="coopBroadcast()">📢 Send</button>
+    </div>
+  </div>
   <button class="cb" style="width:100%;margin-top:4px;background:rgba(255,215,0,.18);color:var(--gold)" onclick="cheatSave()">💾 Save</button>
 </div>
 
@@ -672,7 +695,8 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
 
 <!-- Co-op in-room screen -->
 <div id="coopScreen">
-  <div class="coop-top">
+  <div class="coop-top" style="position:sticky">
+    <div id="coopSecretZone" onclick="secretClick()" style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:110px;height:100%;cursor:default"></div>
     <div>
       <span class="coop-room-code">Room <span id="coopRoomCode">—</span></span>
       <span class="small" style="margin-left:10px"><span class="coop-online-dot"></span><span id="coopOnline">1</span> online</span>
@@ -1479,8 +1503,14 @@ function loadGame() {
 
 let _cheatUnlocked = false;
 
+function updateCheatSections() {
+  const sec = document.getElementById("cheatCoopSec");
+  if (sec) sec.style.display = _coopCode ? "block" : "none";
+}
+
 function secretClick() {
   if (_cheatUnlocked) {
+    updateCheatSections();
     document.getElementById("cheatPanel").classList.toggle("active");
     return;
   }
@@ -1492,9 +1522,10 @@ function secretClick() {
 }
 
 function checkCode() {
-  if (document.getElementById("codeInput").value.toLowerCase().trim() === "zayenclicker") {
+  if (document.getElementById("codeInput").value.toLowerCase().trim() === "cheesymicheal") {
     _cheatUnlocked = true;
     document.getElementById("codeModal").classList.remove("active");
+    updateCheatSections();
     document.getElementById("cheatPanel").classList.add("active");
     toast("🔓 cheat mode activated");
   } else {
@@ -1694,6 +1725,7 @@ async function coopEnter(code){
     const { data } = await sb.rpc("coop_get", { p_code: _coopCode });
     if (data) applyRoom(Array.isArray(data)?data[0]:data);
   }, 6000);
+  updateCheatSections();
 }
 
 async function coopLeave(){
@@ -1703,6 +1735,7 @@ async function coopLeave(){
   _coopCh = null; _coopRoom = null; _coopCode = null;
   document.getElementById("coopScreen").classList.remove("active");
   document.getElementById("coopFeed").innerHTML = "";
+  updateCheatSections();
 }
 
 function applyRoom(row){
@@ -1846,12 +1879,54 @@ function coopFeed(msg){
   while (f.children.length > 30) f.removeChild(f.lastChild);
 }
 
+// ── Co-op admin (cheat panel) — direct room writes, synced to everyone ──
+async function coopAdminPatch(patch, feedMsg){
+  if (!_coopCode || !_sb) return;
+  patch.updated_at = new Date().toISOString();
+  const { data } = await _sb.from("coop_rooms").update(patch).eq("code", _coopCode).select().single();
+  if (data) applyRoom(data);
+  if (feedMsg && _coopCh) _coopCh.send({ type:"broadcast", event:"feed", payload:{ msg:feedMsg } });
+}
+function coopAdminAddZayens(n){
+  if (!_coopRoom) return;
+  coopAdminPatch({ zayens: Math.max(0, coopDisplayZayens()) + n, lifetime: (_coopRoom.lifetime||0) + n },
+                 `🛠 admin added ${fmt(n)} Zayens`);
+}
+function coopAdminMult(x){
+  if (!_coopRoom) return;
+  coopAdminPatch({ multiplier: (_coopRoom.multiplier||1) * x, cps: (_coopRoom.cps||0) * x },
+                 `🛠 admin set ×${x} multiplier`);
+}
+function coopAdminMaxGens(){
+  if (!_coopRoom) return;
+  const g = Object.assign({}, _coopRoom.gens);
+  generators.forEach(x => { g[x.id] = (g[x.id]||0) + 100; });
+  const d = coopDerive(_coopRoom.ups, g);
+  coopAdminPatch({ gens:g, cps:d.cps }, `🛠 admin added +100 of every generator`);
+}
+function coopAdminReset(){
+  if (!_coopRoom) return;
+  if (!confirm("Reset this room's progress for everyone in it?")) return;
+  coopAdminPatch({ zayens:0, lifetime:0, clicks:0, cps:0, click_power:1, multiplier:1, gens:{}, ups:{} },
+                 `🛠 admin reset the room`);
+}
+function coopBroadcast(){
+  const el = document.getElementById("coopBroadcastInput");
+  const t = (el.value||"").trim(); if (!t) return;
+  el.value = "";
+  const msg = `📢 ${_coopName}: ${t}`;
+  if (_coopCh) _coopCh.send({ type:"broadcast", event:"feed", payload:{ msg } });
+  coopFeed(msg);
+}
+
 document.getElementById("coopZayenImg").addEventListener("click", coopClickImg);
 window.addEventListener("beforeunload", coopFlushClicks);
 
 window.openCoop=openCoop; window.closeCoop=closeCoop; window.coopJoin=coopJoin;
 window.coopRandomCode=coopRandomCode; window.coopLeave=coopLeave;
 window.coopShowTab=coopShowTab; window.coopSetAmt=coopSetAmt; window.coopBuy=coopBuy;
+window.coopAdminAddZayens=coopAdminAddZayens; window.coopAdminMult=coopAdminMult;
+window.coopAdminMaxGens=coopAdminMaxGens; window.coopAdminReset=coopAdminReset; window.coopBroadcast=coopBroadcast;
 
 // Expose only UI-triggered functions — state and earn stay private
 window.showTab=showTab; window.showSubTab=showSubTab; window.setBuyAmt=setBuyAmt;
