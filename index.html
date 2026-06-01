@@ -1697,6 +1697,8 @@ const coopSkills = [
   {id:"voidTouch",     name:"Void Touch",        desc:"+20% total production",   cost:50, mult:1.2},
   {id:"transcendence", name:"Transcendence",     desc:"+50% total production",   cost:60, mult:1.5}
 ];
+const COOP_MAX = 1e300;  // hard ceiling so values never overflow JS to Infinity
+function coopCap(n){ return isFinite(n) ? Math.min(n, COOP_MAX) : COOP_MAX; }
 function coopCostDisc(){ return (_coopRoom && _coopRoom.skills && _coopRoom.skills.discounts) ? 0.9 : 1; }
 function coopGemDisc(){  return (_coopRoom && _coopRoom.skills && _coopRoom.skills.gemEfficiency) ? 0.8 : 1; }
 function coopAreaMult(area){ const a = areas.find(x=>x.id===area); return a ? a.mult : 1; }
@@ -1783,11 +1785,11 @@ async function coopLeave(){
 
 function applyRoom(row){
   if (!row) return;
-  row.zayens      = Number(row.zayens)      || 0;
-  row.lifetime    = Number(row.lifetime)    || 0;
-  row.cps         = Number(row.cps)         || 0;
-  row.click_power = Number(row.click_power) || 1;
-  row.multiplier  = Number(row.multiplier)  || 1;
+  row.zayens      = coopCap(Number(row.zayens)      || 0);
+  row.lifetime    = coopCap(Number(row.lifetime)    || 0);
+  row.cps         = coopCap(Number(row.cps)         || 0);
+  row.click_power = coopCap(Number(row.click_power) || 1);
+  row.multiplier  = coopCap(Number(row.multiplier)  || 1);
   row.clicks      = Number(row.clicks)      || 0;
   row.gems        = Number(row.gems)        || 0;
   row.gens = row.gens || {}; row.ups = row.ups || {};
@@ -1808,7 +1810,7 @@ function coopEsc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
 
 function coopDisplayZayens(){
   if (!_coopRoom) return 0;
-  return _coopRoom.zayens + _coopRoom.cps * (Date.now() - _coopLastSync) / 1000;
+  return coopCap(_coopRoom.zayens + _coopRoom.cps * (Date.now() - _coopLastSync) / 1000);
 }
 
 // Derive effective stats from a room-like object {ups,gens,speed,skills,area}
@@ -1830,7 +1832,7 @@ function coopDerive(rm){
   }});
   // base per-second with generator speed tiers
   const baseCps = generators.reduce((s,g)=>s + (gens[g.id]||0) * g.cps * speedTiers[speed[g.id]||0], 0);
-  return { clickPower: cp * clickMult, multiplier: totalMult, cps: baseCps * genMult * totalMult };
+  return { clickPower: coopCap(cp * clickMult), multiplier: coopCap(totalMult), cps: coopCap(baseCps * genMult * totalMult) };
 }
 
 function coopSmoothTick(){
@@ -1923,7 +1925,7 @@ function coopClickImg(){
   if (!_coopRoom) return;
   const gain = _coopRoom.click_power * _coopRoom.multiplier;
   _coopClickBuf += gain; _coopClickCount += 1;
-  _coopRoom.zayens += gain;            // optimistic local
+  _coopRoom.zayens = coopCap(_coopRoom.zayens + gain);   // optimistic local
   document.getElementById("coopZayens").innerText = fmt(coopDisplayZayens());
   const img = document.getElementById("coopZayenImg");
   img.style.transform = "scale(.92)"; setTimeout(()=>img.style.transform="scale(1)", 80);
