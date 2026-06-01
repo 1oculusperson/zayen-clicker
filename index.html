@@ -641,6 +641,10 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
              onkeydown="if(event.key==='Enter')coopBroadcast()">
       <button class="cb" onclick="coopBroadcast()">📢 Send</button>
     </div>
+    <div style="margin-top:9px">
+      <div class="cheat-sec-lbl" style="opacity:.5;margin-bottom:5px">Pause player purchases</div>
+      <div class="cheat-row" id="coopFreezeList"></div>
+    </div>
   </div>
   <button class="cb" style="width:100%;margin-top:4px;background:rgba(255,215,0,.18);color:var(--gold)" onclick="cheatSave()">💾 Save</button>
 </div>
@@ -721,6 +725,7 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
       <div class="coop-feed" id="coopFeed"></div>
     </section>
     <section class="card">
+      <div id="coopFrozenNote" style="display:none;background:rgba(255,80,80,.15);border:1px solid rgba(255,80,80,.4);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:.85rem;color:#ffb3b3">🔒 An admin has paused your purchases.</div>
       <div class="coop-tabs">
         <button class="active" id="coopTabUp" onclick="coopShowTab('up')">Upgrades</button>
         <button id="coopTabGen" onclick="coopShowTab('gen')">Gens</button>
@@ -1513,6 +1518,7 @@ let _cheatUnlocked = false;
 function updateCheatSections() {
   const sec = document.getElementById("cheatCoopSec");
   if (sec) sec.style.display = _coopCode ? "block" : "none";
+  if (_coopCode && typeof coopRenderAdminFreeze === "function") coopRenderAdminFreeze();
 }
 
 function secretClick() {
@@ -1671,6 +1677,7 @@ let _coopBuyAmt = 1, _coopTab = "up";
 let _coopClickBuf = 0, _coopClickCount = 0;
 let _coopLastSync = 0;
 let _coopSmoothTimer=null, _coopFlushTimer=null, _coopSyncTimer=null, _coopRenderAcc=0;
+let _coopOnlineNames = [];
 
 // Curated co-op skill set (bought with the room's shared gems).
 // click = click multiplier, gen = generator-output multiplier,
@@ -1775,11 +1782,18 @@ function applyRoom(row){
   row.gens = row.gens || {}; row.ups = row.ups || {};
   row.speed = row.speed || {}; row.skills = row.skills || {};
   row.area = row.area || "classroom";
+  row.frozen = Array.isArray(row.frozen) ? row.frozen : [];
   _coopRoom = row;
   _coopLastSync = Date.now();
   coopRenderStats();
   coopRenderLists();
+  coopRenderAdminFreeze();
 }
+
+function coopFrozen(){
+  return !!(_coopRoom && Array.isArray(_coopRoom.frozen) && _coopRoom.frozen.includes(_coopName));
+}
+function coopEsc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 function coopDisplayZayens(){
   if (!_coopRoom) return 0;
@@ -1831,12 +1845,15 @@ function coopRenderLists(){
   const r = _coopRoom; if (!r) return;
   const budget = coopDisplayZayens();
   const disc = coopCostDisc();
+  const fz = coopFrozen();
+  const note = document.getElementById("coopFrozenNote");
+  if (note) note.style.display = fz ? "block" : "none";
   document.getElementById("coopUpList").innerHTML = upgrades.map(u=>{
     const owned = r.ups[u.id]||0;
     const n = _coopBuyAmt==="max" ? maxBuyableN(u.base,u.scale,owned,budget,disc) : _coopBuyAmt;
     const cost = n>0 ? bulkCost(u.base,u.scale,owned,n,disc) : Infinity;
     const label = n>1 ? `×${n} — ${fmt(cost)}` : fmt(cost);
-    return `<div class="upgrade"><div class="row"><div><h3>${u.name}</h3><div class="small">${u.desc}<br>Owned: ${owned}</div></div><button ${budget<cost||n<1?"disabled":""} onclick="coopBuy('up','${u.id}')">${label}</button></div></div>`;
+    return `<div class="upgrade"><div class="row"><div><h3>${u.name}</h3><div class="small">${u.desc}<br>Owned: ${owned}</div></div><button ${fz||budget<cost||n<1?"disabled":""} onclick="coopBuy('up','${u.id}')">${label}</button></div></div>`;
   }).join("");
   document.getElementById("coopGenList").innerHTML = generators.map(g=>{
     const owned = r.gens[g.id]||0;
@@ -1844,7 +1861,7 @@ function coopRenderLists(){
     const n = _coopBuyAmt==="max" ? maxBuyableN(g.base,g.scale,owned,budget,disc) : _coopBuyAmt;
     const cost = n>0 ? bulkCost(g.base,g.scale,owned,n,disc) : Infinity;
     const label = n>1 ? `×${n} — ${fmt(cost)}` : fmt(cost);
-    return `<div class="upgrade"><div class="row"><div><h3>${g.name} <span style="color:var(--gold);font-size:.85rem">⚡${spd}x</span></h3><div class="small">${g.cps*spd}/sec each • Owned: ${owned}</div></div><button ${budget<cost||n<1?"disabled":""} onclick="coopBuy('gen','${g.id}')">${label}</button></div></div>`;
+    return `<div class="upgrade"><div class="row"><div><h3>${g.name} <span style="color:var(--gold);font-size:.85rem">⚡${spd}x</span></h3><div class="small">${g.cps*spd}/sec each • Owned: ${owned}</div></div><button ${fz||budget<cost||n<1?"disabled":""} onclick="coopBuy('gen','${g.id}')">${label}</button></div></div>`;
   }).join("");
   // Speed
   document.getElementById("coopSpeedList").innerHTML = generators.map(g=>{
@@ -1852,19 +1869,19 @@ function coopRenderLists(){
     const spd = speedTiers[lvl];
     const maxed = lvl >= speedTiers.length-1;
     const cost = coopSpeedCost(g);
-    return `<div class="upgrade"><div class="row"><div><h3>${g.name}</h3><div class="small">Current: ${spd}x • ${maxed?"MAX SPEED":"Next: "+speedTiers[lvl+1]+"x"}</div></div><button style="background:var(--blue);color:#111" ${maxed||budget<cost?"disabled":""} onclick="coopBuySpeed('${g.id}')">${maxed?"MAX":fmt(cost)}</button></div></div>`;
+    return `<div class="upgrade"><div class="row"><div><h3>${g.name}</h3><div class="small">Current: ${spd}x • ${maxed?"MAX SPEED":"Next: "+speedTiers[lvl+1]+"x"}</div></div><button style="background:var(--blue);color:#111" ${fz||maxed||budget<cost?"disabled":""} onclick="coopBuySpeed('${g.id}')">${maxed?"MAX":fmt(cost)}</button></div></div>`;
   }).join("");
   // Areas
   document.getElementById("coopAreaList").innerHTML = areas.map(a=>{
     const unlocked = r.lifetime >= a.need;
     const active = (r.area||"classroom") === a.id;
-    return `<div class="area"><div class="row"><div><h3>${a.name}</h3><div class="small">Production ×${a.mult} • Unlock at ${fmt(a.need)} lifetime</div></div><button ${!unlocked||active?"disabled":""} onclick="coopTravel('${a.id}')">${active?"Active":(unlocked?"Travel":"Locked")}</button></div></div>`;
+    return `<div class="area"><div class="row"><div><h3>${a.name}</h3><div class="small">Production ×${a.mult} • Unlock at ${fmt(a.need)} lifetime</div></div><button ${fz||!unlocked||active?"disabled":""} onclick="coopTravel('${a.id}')">${active?"Active":(unlocked?"Travel":"Locked")}</button></div></div>`;
   }).join("");
   // Skills (gems)
   document.getElementById("coopSkillList").innerHTML = coopSkills.map(s=>{
     const owned = !!r.skills[s.id];
     const cost = Math.ceil(s.cost * coopGemDisc());
-    return `<div class="skill"><div class="row"><div><h3>${s.name}</h3><div class="small">${s.desc}</div></div><button ${owned||r.gems<cost?"disabled":""} onclick="coopBuy('skill','${s.id}')">${owned?"Owned":cost+" 💎"}</button></div></div>`;
+    return `<div class="skill"><div class="row"><div><h3>${s.name}</h3><div class="small">${s.desc}</div></div><button ${fz||owned||r.gems<cost?"disabled":""} onclick="coopBuy('skill','${s.id}')">${owned?"Owned":cost+" 💎"}</button></div></div>`;
   }).join("");
 }
 
@@ -1922,6 +1939,7 @@ async function coopRpcBuy(cost, kind, id, qty, rmLike, feedName){
 
 async function coopBuy(kind, id){
   const r = _coopRoom; if (!r) return;
+  if (coopFrozen()) { toast("🔒 An admin paused your purchases."); return; }
 
   if (kind === "skill") {
     const def = coopSkills.find(s=>s.id===id); if (!def || r.skills[id]) return;
@@ -1948,6 +1966,7 @@ async function coopBuy(kind, id){
 
 async function coopBuySpeed(id){
   const r = _coopRoom; if (!r) return;
+  if (coopFrozen()) { toast("🔒 An admin paused your purchases."); return; }
   const g = generators.find(x=>x.id===id); if (!g) return;
   const lvl = r.speed[id]||0;
   if (lvl >= speedTiers.length-1) return;
@@ -1960,6 +1979,7 @@ async function coopBuySpeed(id){
 
 async function coopTravel(areaId){
   const r = _coopRoom; if (!r) return;
+  if (coopFrozen()) { toast("🔒 An admin paused your purchases."); return; }
   const a = areas.find(x=>x.id===areaId); if (!a || r.lifetime < a.need || r.area===areaId) return;
   const rm = { ups:r.ups, gens:r.gens, speed:r.speed, skills:r.skills, area:areaId };
   const d = coopDerive(rm);
@@ -1975,9 +1995,40 @@ function coopSyncPresence(){
   const st = _coopCh.presenceState();
   const names = [];
   Object.values(st).forEach(arr => arr.forEach(m => names.push(m.name)));
+  _coopOnlineNames = [...new Set(names)];
   document.getElementById("coopOnline").textContent = names.length || 1;
   document.getElementById("coopPlayers").innerHTML =
-    names.map(nm=>`<span class="coop-chip">${nm===_coopName?"⭐ ":""}${nm}</span>`).join("");
+    _coopOnlineNames.map(nm=>`<span class="coop-chip">${nm===_coopName?"⭐ ":""}${coopEsc(nm)}</span>`).join("");
+  coopRenderAdminFreeze();
+}
+
+// Admin: render the per-player pause buttons (online players + any frozen ones)
+function coopRenderAdminFreeze(){
+  const el = document.getElementById("coopFreezeList");
+  if (!el) return;
+  if (!_coopCode || !_coopRoom) { el.innerHTML = ""; return; }
+  const frozen = Array.isArray(_coopRoom.frozen) ? _coopRoom.frozen : [];
+  const names = [...new Set([..._coopOnlineNames, ...frozen])];
+  if (!names.length) { el.innerHTML = `<span class="small" style="opacity:.4">No players.</span>`; return; }
+  el.innerHTML = names.map((nm,i)=>{
+    const isFz = frozen.includes(nm);
+    return `<button class="cb" style="${isFz?'background:rgba(255,80,80,.32)':''}" onclick="coopAdminToggleFreeze(${i})">${isFz?'🔒':'▶'} ${coopEsc(nm)}</button>`;
+  }).join("");
+  el._names = names;  // index → name lookup for the click handler
+}
+
+async function coopAdminToggleFreeze(i){
+  const el = document.getElementById("coopFreezeList");
+  const nm = el && el._names ? el._names[i] : null;
+  if (nm == null || !_coopRoom || !_sb) return;
+  let frozen = Array.isArray(_coopRoom.frozen) ? _coopRoom.frozen.slice() : [];
+  const had = frozen.includes(nm);
+  frozen = had ? frozen.filter(x=>x!==nm) : frozen.concat([nm]);
+  // note: no updated_at change — freezing doesn't affect idle accrual
+  const { data } = await _sb.from("coop_rooms").update({ frozen }).eq("code", _coopCode).select().single();
+  if (data) applyRoom(data);
+  if (_coopCh) _coopCh.send({ type:"broadcast", event:"feed",
+    payload:{ msg: had ? `🔓 admin unpaused ${nm}` : `🔒 admin paused ${nm}'s purchases` } });
 }
 
 function coopFeed(msg){
@@ -2037,6 +2088,7 @@ window.coopShowTab=coopShowTab; window.coopSetAmt=coopSetAmt; window.coopBuy=coo
 window.coopBuySpeed=coopBuySpeed; window.coopTravel=coopTravel;
 window.coopAdminAddZayens=coopAdminAddZayens; window.coopAdminMult=coopAdminMult;
 window.coopAdminMaxGens=coopAdminMaxGens; window.coopAdminReset=coopAdminReset; window.coopBroadcast=coopBroadcast;
+window.coopAdminToggleFreeze=coopAdminToggleFreeze;
 
 // Expose only UI-triggered functions — state and earn stay private
 window.showTab=showTab; window.showSubTab=showSubTab; window.setBuyAmt=setBuyAmt;
