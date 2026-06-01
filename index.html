@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <title>Zayen Clicker</title>
 <style>
 :root {
@@ -354,6 +355,61 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
 .inf-sing { border-color:rgba(100,200,255,.4); }
 .inf-sing .inf-choice-title { color:#88ddff; }
 .inf-sing:hover { border-color:#88ddff; background:rgba(0,80,150,.18); }
+
+/* ── Co-op multiplayer ─────────────────────────────────────────── */
+.coop-online-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); margin-right:5px; vertical-align:middle; animation:coop-pulse 1.6s ease-in-out infinite; }
+@keyframes coop-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+#coopModal, #coopScreen {
+  position:fixed; inset:0; z-index:300;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(8,8,20,.82); backdrop-filter:blur(6px);
+}
+#coopModal.active { display:flex; }
+#coopScreen.active { display:block; overflow-y:auto; padding:0; backdrop-filter:none; background:radial-gradient(circle at top, var(--bg2), var(--bg1)); }
+
+.coop-card {
+  background:var(--card); border:1px solid rgba(255,255,255,.16);
+  border-radius:22px; padding:26px; width:min(92vw,420px);
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.coop-card h2 { margin:0 0 6px; }
+.coop-card .small { opacity:.6; }
+.coop-input {
+  width:100%; margin-top:14px; padding:13px 15px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.25);
+  color:white; font-family:inherit; font-size:1rem; text-transform:uppercase;
+  letter-spacing:.18em; text-align:center;
+}
+.coop-input.name { text-transform:none; letter-spacing:normal; }
+.coop-btn-row { display:flex; gap:10px; margin-top:16px; }
+.coop-btn-row button { flex:1; }
+.coop-cancel { background:rgba(255,255,255,.12); color:white; }
+
+/* co-op in-room screen */
+#coopScreen .coop-top {
+  position:sticky; top:0; z-index:5;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:14px 22px; background:rgba(0,0,0,.35);
+  border-bottom:1px solid rgba(255,255,255,.1); backdrop-filter:blur(8px);
+}
+#coopScreen .coop-room-code { font-weight:700; font-size:1.05rem; letter-spacing:.1em; color:var(--gold); }
+.coop-grid {
+  max-width:1100px; margin:0 auto; padding:22px;
+  display:grid; grid-template-columns:1fr 1.2fr; gap:20px; align-items:start;
+}
+@media (max-width:820px){ .coop-grid{ grid-template-columns:1fr; } }
+.coop-feed {
+  max-height:120px; overflow-y:auto; font-size:.82rem; line-height:1.7;
+  background:rgba(0,0,0,.2); border-radius:12px; padding:10px 14px; margin-top:14px;
+}
+.coop-feed div { opacity:.8; }
+.coop-players { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.coop-chip { background:rgba(255,255,255,.12); border-radius:20px; padding:4px 12px; font-size:.8rem; }
+.coop-tabs { display:flex; gap:8px; margin-bottom:12px; }
+.coop-tabs button { flex:1; background:rgba(255,255,255,.1); color:white; }
+.coop-tabs button.active { background:var(--gold); color:#1a1205; }
+.coop-warn { color:#ffb86b; font-size:.85rem; margin-top:12px; line-height:1.5; }
 </style>
 </head>
 <body>
@@ -366,6 +422,7 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
   </div>
   <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
     <div style="display:flex;gap:8px">
+      <button onclick="openCoop()">👥 Co-op</button>
       <button onclick="claimDaily()">Daily Reward</button>
       <button onclick="saveGame(true)">Save</button>
       <button onclick="hardReset()">Reset</button>
@@ -588,6 +645,70 @@ body.area-eternal    {--bg1:#000000;--bg2:#020202;--gold:#ffffff;--green:#aaaaaa
       <div class="inf-choice-desc">You absorb infinity. Zayens vanish but everything else endures. The generators hunger for more.</div>
       <div class="inf-choice-reward">+1 Singularity → ×2 generator speed (stacks)</div>
     </div>
+  </div>
+</div>
+
+<!-- Co-op join/create modal -->
+<div id="coopModal">
+  <div class="coop-card">
+    <h2>👥 Co-op Rooms</h2>
+    <p class="small">Team up — everyone shares one Zayen bank. All clicks and purchases are pooled and synced live.</p>
+    <input class="coop-input name" id="coopName" maxlength="16" placeholder="Your name" autocomplete="off">
+    <input class="coop-input" id="coopCode" maxlength="6" placeholder="ROOM CODE" autocomplete="off"
+           onkeydown="if(event.key==='Enter')coopJoin()">
+    <div class="coop-btn-row">
+      <button onclick="coopJoin()">Join / Create</button>
+      <button onclick="coopRandomCode()" style="flex:0 0 auto;background:var(--blue);color:#08233f">🎲</button>
+    </div>
+    <div class="coop-btn-row">
+      <button class="coop-cancel" onclick="closeCoop()">Cancel</button>
+    </div>
+    <div id="coopModalErr" class="coop-warn" style="display:none"></div>
+    <div id="coopSetupWarn" class="coop-warn" style="display:none">
+      ⚠ Multiplayer backend isn't configured yet. The owner needs to add a Supabase URL + anon key.
+    </div>
+  </div>
+</div>
+
+<!-- Co-op in-room screen -->
+<div id="coopScreen">
+  <div class="coop-top">
+    <div>
+      <span class="coop-room-code">Room <span id="coopRoomCode">—</span></span>
+      <span class="small" style="margin-left:10px"><span class="coop-online-dot"></span><span id="coopOnline">1</span> online</span>
+    </div>
+    <button class="coop-cancel" onclick="coopLeave()">Leave Room</button>
+  </div>
+  <div class="coop-grid">
+    <section class="card center">
+      <div class="big-number"><span id="coopZayens">0</span></div>
+      <div class="small">Shared Zayens</div>
+      <div style="margin:18px 0">
+        <img id="coopZayenImg" src="cookie.png" alt="Zayen" style="width:min(60vw,240px);border-radius:50%;cursor:pointer;border:3px solid var(--gold);box-shadow:0 0 0 4px rgba(255,255,255,.08),0 0 30px rgba(255,191,77,.35);user-select:none;transition:transform .08s ease">
+      </div>
+      <div class="statgrid">
+        <div class="statbox"><div class="statval" id="coopPerClick">1</div><div class="statlbl">Per Click</div></div>
+        <div class="statbox"><div class="statval" id="coopPerSec">0</div><div class="statlbl">Per Second</div></div>
+        <div class="statbox"><div class="statval">×<span id="coopMult">1.00</span></div><div class="statlbl">Multiplier</div></div>
+        <div class="statbox"><div class="statval" id="coopClicks">0</div><div class="statlbl">Total Clicks</div></div>
+      </div>
+      <div class="coop-players" id="coopPlayers"></div>
+      <div class="coop-feed" id="coopFeed"></div>
+    </section>
+    <section class="card">
+      <div class="coop-tabs">
+        <button class="active" id="coopTabUp" onclick="coopShowTab('up')">Upgrades</button>
+        <button id="coopTabGen" onclick="coopShowTab('gen')">Generators</button>
+      </div>
+      <div class="buy-toggle">
+        <button class="amt-btn active" onclick="coopSetAmt(1,this)">×1</button>
+        <button class="amt-btn" onclick="coopSetAmt(10,this)">×10</button>
+        <button class="amt-btn" onclick="coopSetAmt(25,this)">×25</button>
+        <button class="amt-btn" onclick="coopSetAmt('max',this)">MAX</button>
+      </div>
+      <div id="coopUpList"></div>
+      <div id="coopGenList" style="display:none"></div>
+    </section>
   </div>
 </div>
 
@@ -1496,6 +1617,241 @@ setInterval(()=>{
 
 setInterval(()=>saveGame(false), 5000);
 window.addEventListener("beforeunload", ()=>saveGame(false));
+
+// ══════════════════════════════════════════════════════════════════
+// CO-OP MULTIPLAYER  (Supabase)
+// To enable: create a free Supabase project, run coop-setup.sql in the
+// SQL editor, then paste your project URL + anon (public) key below.
+// The anon key is safe to expose — it's protected by row-level security.
+// ══════════════════════════════════════════════════════════════════
+const SUPABASE_URL      = "";
+const SUPABASE_ANON_KEY = "";
+
+let _sb=null, _coopCh=null, _coopRoom=null, _coopCode=null;
+let _coopName = localStorage.getItem("coopName") || "";
+let _coopBuyAmt = 1, _coopTab = "up";
+let _coopClickBuf = 0, _coopClickCount = 0;
+let _coopLastSync = 0;
+let _coopSmoothTimer=null, _coopFlushTimer=null, _coopSyncTimer=null, _coopRenderAcc=0;
+
+function coopReady(){ return !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase); }
+function coopClient(){
+  if (!_sb && coopReady()) _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return _sb;
+}
+
+function openCoop(){
+  document.getElementById("coopName").value = _coopName;
+  document.getElementById("coopModalErr").style.display = "none";
+  document.getElementById("coopSetupWarn").style.display = coopReady() ? "none" : "block";
+  document.getElementById("coopModal").classList.add("active");
+}
+function closeCoop(){ document.getElementById("coopModal").classList.remove("active"); }
+function coopRandomCode(){
+  const c = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = ""; for (let i=0;i<5;i++) s += c[Math.floor(Math.random()*c.length)];
+  document.getElementById("coopCode").value = s;
+}
+function coopErr(msg){
+  const e = document.getElementById("coopModalErr");
+  e.textContent = msg; e.style.display = "block";
+}
+
+function coopJoin(){
+  if (!coopReady()) { coopErr("Multiplayer backend isn't configured yet."); return; }
+  const name = (document.getElementById("coopName").value || "").trim().slice(0,16)
+            || ("Player" + Math.floor(1000 + Math.random()*9000));
+  const code = (document.getElementById("coopCode").value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
+  if (code.length < 3) { coopErr("Enter a room code (3+ characters), or roll a random one."); return; }
+  _coopName = name; localStorage.setItem("coopName", name);
+  closeCoop();
+  coopEnter(code);
+}
+
+async function coopEnter(code){
+  const sb = coopClient();
+  _coopCode = code;
+  document.getElementById("coopRoomCode").textContent = code;
+  document.getElementById("coopScreen").classList.add("active");
+
+  const { data, error } = await sb.rpc("coop_get", { p_code: code });
+  if (error) { alert("Couldn't join room: " + error.message); coopLeave(); return; }
+  applyRoom(Array.isArray(data) ? data[0] : data);
+
+  _coopCh = sb.channel("coop:" + code, { config:{ presence:{ key: _coopName + ":" + Math.random().toString(36).slice(2,7) } } });
+  _coopCh
+    .on("postgres_changes", { event:"*", schema:"public", table:"coop_rooms", filter:"code=eq."+code },
+        payload => { if (payload.new) applyRoom(payload.new); })
+    .on("broadcast", { event:"feed" }, ({payload}) => coopFeed(payload.msg))
+    .on("presence", { event:"sync" }, coopSyncPresence)
+    .on("presence", { event:"join" }, ({newPresences}) => newPresences.forEach(p=>coopFeed("→ " + p.name + " joined")))
+    .on("presence", { event:"leave" }, ({leftPresences}) => leftPresences.forEach(p=>coopFeed("← " + p.name + " left")))
+    .subscribe(async status => { if (status === "SUBSCRIBED") await _coopCh.track({ name: _coopName }); });
+
+  _coopSmoothTimer = setInterval(coopSmoothTick, 200);
+  _coopFlushTimer  = setInterval(coopFlushClicks, 350);
+  _coopSyncTimer   = setInterval(async ()=>{
+    const { data } = await sb.rpc("coop_get", { p_code: _coopCode });
+    if (data) applyRoom(Array.isArray(data)?data[0]:data);
+  }, 6000);
+}
+
+async function coopLeave(){
+  clearInterval(_coopSmoothTimer); clearInterval(_coopFlushTimer); clearInterval(_coopSyncTimer);
+  await coopFlushClicks();
+  if (_coopCh && _sb) { try { await _sb.removeChannel(_coopCh); } catch(e){} }
+  _coopCh = null; _coopRoom = null; _coopCode = null;
+  document.getElementById("coopScreen").classList.remove("active");
+  document.getElementById("coopFeed").innerHTML = "";
+}
+
+function applyRoom(row){
+  if (!row) return;
+  row.zayens      = Number(row.zayens)      || 0;
+  row.lifetime    = Number(row.lifetime)    || 0;
+  row.cps         = Number(row.cps)         || 0;
+  row.click_power = Number(row.click_power) || 1;
+  row.multiplier  = Number(row.multiplier)  || 1;
+  row.clicks      = Number(row.clicks)      || 0;
+  row.gens = row.gens || {}; row.ups = row.ups || {};
+  _coopRoom = row;
+  _coopLastSync = Date.now();
+  coopRenderStats();
+  coopRenderLists();
+}
+
+function coopDisplayZayens(){
+  if (!_coopRoom) return 0;
+  return _coopRoom.zayens + _coopRoom.cps * (Date.now() - _coopLastSync) / 1000;
+}
+
+// Derive effective stats from owned counts by replaying upgrade effects
+function coopDerive(ups, gens){
+  const sCp = state.clickPower, sM = state.multiplier;
+  state.clickPower = 1; state.multiplier = 1;
+  upgrades.forEach(u => { const n = ups[u.id]||0; for (let i=0;i<n;i++) u.effect(); });
+  const cp = state.clickPower, m = state.multiplier;
+  state.clickPower = sCp; state.multiplier = sM;
+  const baseCps = generators.reduce((s,g)=>s + (gens[g.id]||0) * g.cps, 0);
+  return { clickPower: cp, multiplier: m, cps: baseCps * m };
+}
+
+function coopSmoothTick(){
+  if (!_coopRoom) return;
+  document.getElementById("coopZayens").innerText = fmt(coopDisplayZayens());
+  _coopRenderAcc += 200;
+  if (_coopRenderAcc >= 1000) { _coopRenderAcc = 0; coopRenderLists(); }
+}
+
+function coopRenderStats(){
+  const r = _coopRoom; if (!r) return;
+  document.getElementById("coopZayens").innerText = fmt(coopDisplayZayens());
+  document.getElementById("coopPerClick").innerText = fmt(r.click_power * r.multiplier);
+  document.getElementById("coopPerSec").innerText = fmt(r.cps);
+  document.getElementById("coopMult").innerText = r.multiplier.toFixed(2);
+  document.getElementById("coopClicks").innerText = fmt(r.clicks);
+}
+
+function coopRenderLists(){
+  const r = _coopRoom; if (!r) return;
+  const budget = coopDisplayZayens();
+  document.getElementById("coopUpList").innerHTML = upgrades.map(u=>{
+    const owned = r.ups[u.id]||0;
+    const n = _coopBuyAmt==="max" ? maxBuyableN(u.base,u.scale,owned,budget,1) : _coopBuyAmt;
+    const cost = n>0 ? bulkCost(u.base,u.scale,owned,n,1) : Infinity;
+    const label = n>1 ? `×${n} — ${fmt(cost)}` : fmt(cost);
+    return `<div class="upgrade"><div class="row"><div><h3>${u.name}</h3><div class="small">${u.desc}<br>Owned: ${owned}</div></div><button ${budget<cost||n<1?"disabled":""} onclick="coopBuy('up','${u.id}')">${label}</button></div></div>`;
+  }).join("");
+  document.getElementById("coopGenList").innerHTML = generators.map(g=>{
+    const owned = r.gens[g.id]||0;
+    const n = _coopBuyAmt==="max" ? maxBuyableN(g.base,g.scale,owned,budget,1) : _coopBuyAmt;
+    const cost = n>0 ? bulkCost(g.base,g.scale,owned,n,1) : Infinity;
+    const label = n>1 ? `×${n} — ${fmt(cost)}` : fmt(cost);
+    return `<div class="upgrade"><div class="row"><div><h3>${g.name}</h3><div class="small">${g.cps}/sec each • Owned: ${owned}</div></div><button ${budget<cost||n<1?"disabled":""} onclick="coopBuy('gen','${g.id}')">${label}</button></div></div>`;
+  }).join("");
+}
+
+function coopShowTab(t){
+  _coopTab = t;
+  document.getElementById("coopTabUp").classList.toggle("active", t==="up");
+  document.getElementById("coopTabGen").classList.toggle("active", t==="gen");
+  document.getElementById("coopUpList").style.display  = t==="up" ? "block":"none";
+  document.getElementById("coopGenList").style.display = t==="gen"? "block":"none";
+}
+function coopSetAmt(amt, btn){
+  _coopBuyAmt = amt;
+  document.querySelectorAll("#coopScreen .amt-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  coopRenderLists();
+}
+
+function coopClickImg(){
+  if (!_coopRoom) return;
+  const gain = _coopRoom.click_power * _coopRoom.multiplier;
+  _coopClickBuf += gain; _coopClickCount += 1;
+  _coopRoom.zayens += gain;            // optimistic local
+  document.getElementById("coopZayens").innerText = fmt(coopDisplayZayens());
+  const img = document.getElementById("coopZayenImg");
+  img.style.transform = "scale(.92)"; setTimeout(()=>img.style.transform="scale(1)", 80);
+}
+
+async function coopFlushClicks(){
+  if (!_coopCode || _coopClickBuf <= 0) return;
+  const amt = _coopClickBuf, cnt = _coopClickCount;
+  _coopClickBuf = 0; _coopClickCount = 0;
+  const { data } = await _sb.rpc("coop_click", { p_code:_coopCode, p_amount:amt, p_clicks:cnt });
+  if (data) applyRoom(Array.isArray(data)?data[0]:data);
+}
+
+async function coopBuy(kind, id){
+  const r = _coopRoom; if (!r) return;
+  const list = kind==="up" ? upgrades : generators;
+  const def = list.find(x=>x.id===id); if (!def) return;
+  const map = kind==="up" ? r.ups : r.gens;
+  const owned = map[id]||0;
+  const budget = coopDisplayZayens();
+  const n = _coopBuyAmt==="max" ? maxBuyableN(def.base,def.scale,owned,budget,1) : _coopBuyAmt;
+  if (n < 1) return;
+  const cost = bulkCost(def.base,def.scale,owned,n,1);
+  if (budget < cost) return;
+  // compute resulting stats
+  const newUps  = Object.assign({}, r.ups);
+  const newGens = Object.assign({}, r.gens);
+  (kind==="up" ? newUps : newGens)[id] = owned + n;
+  const d = coopDerive(newUps, newGens);
+  const { data, error } = await _sb.rpc("coop_buy", {
+    p_code:_coopCode, p_cost:cost, p_kind:kind, p_id:id, p_qty:n,
+    p_cps:d.cps, p_click:d.clickPower, p_mult:d.multiplier
+  });
+  if (error) return;
+  applyRoom(Array.isArray(data)?data[0]:data);
+  if (_coopCh) _coopCh.send({ type:"broadcast", event:"feed", payload:{ msg:`${_coopName} bought ${def.name}${n>1?" ×"+n:""}` } });
+}
+
+function coopSyncPresence(){
+  if (!_coopCh) return;
+  const st = _coopCh.presenceState();
+  const names = [];
+  Object.values(st).forEach(arr => arr.forEach(m => names.push(m.name)));
+  document.getElementById("coopOnline").textContent = names.length || 1;
+  document.getElementById("coopPlayers").innerHTML =
+    names.map(nm=>`<span class="coop-chip">${nm===_coopName?"⭐ ":""}${nm}</span>`).join("");
+}
+
+function coopFeed(msg){
+  const f = document.getElementById("coopFeed");
+  const d = document.createElement("div");
+  d.textContent = msg;
+  f.prepend(d);
+  while (f.children.length > 30) f.removeChild(f.lastChild);
+}
+
+document.getElementById("coopZayenImg").addEventListener("click", coopClickImg);
+window.addEventListener("beforeunload", coopFlushClicks);
+
+window.openCoop=openCoop; window.closeCoop=closeCoop; window.coopJoin=coopJoin;
+window.coopRandomCode=coopRandomCode; window.coopLeave=coopLeave;
+window.coopShowTab=coopShowTab; window.coopSetAmt=coopSetAmt; window.coopBuy=coopBuy;
 
 // Expose only UI-triggered functions — state and earn stay private
 window.showTab=showTab; window.showSubTab=showSubTab; window.setBuyAmt=setBuyAmt;
